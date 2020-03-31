@@ -27,7 +27,7 @@ f20 <- f20[,!(names(f20) %in% unnecessaryColumns)]
 top5leagues <- c("Arsenal","Manchester United","Manchester City","Liverpool","Tottenham Hotspur","Chelsea",
                  "FC Barcelona","AtlÃ©tico Madrid","Real Madrid","AtlÃ©tico Madrid","Sevilla","Valencia CF",
                  "Napoli","Juventus","Inter","Lazio","Milan","Atalanta","Roma",
-                 "Borussia Dortmund","FC Bayern MÃ¼nchen","RB Leipzig","Bayer 04 Leverkusen","Borussia MÃ¶nchengladbach",
+                 "Borussia Dortmund","FC Bayern MÃ¼nchen","RB Leipzig","Bayer 04 Leverkusen","Borussia MÃ¶nchengladbach","FC Schalke 04",
                  "Paris Saint-Germain","Olympique Lyonnais","LOSC Lille","Stade Rennais FC","AS Monaco")
 
 
@@ -37,3 +37,5 @@ top2017 <- f17[f17$club %in% top5leagues,]
 top2018 <- f18[f18$club %in% top5leagues,]
 top2019 <- f19[f19$club %in% top5leagues,]
 top2020 <- f20[f20$club %in% top5leagues,]
+
+
