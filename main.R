@@ -46,6 +46,7 @@ top2019 <- f19[f19$club %in% top5leagues,]
 top2020 <- f20[f20$club %in% top5leagues,]
 
 ########################################################################
+# Function Definitions:
 
 addPositionColumn <- function(df){
   df$player_positions <- gsub(" ", "", substr(df$player_positions, 1, 3))
@@ -60,7 +61,16 @@ addPositionColumn <- function(df){
 }
 
 
-#Factorise player positions:
+graphTopCountries <- function(df){
+  countries_count <- count(df, nationality)
+  top10 <- top_n(countries_count, 10, n)
+  top10 <- as.data.frame(top10)
+  ggplot(top10, aes(x=nationality,y = n)) +geom_bar(stat = "identity", col = "orange", aes(fill = n))+
+    ggtitle("Distribution based on Nationality of Players (Top 10 Countries)")
+}
+
+####################################################################
+# Factorise player positions:
 f16 <- addPositionColumn(f16)
 f17 <- addPositionColumn(f17)
 f18 <- addPositionColumn(f18)
@@ -102,5 +112,18 @@ g_age + geom_histogram(bins = 30,col="orange", aes(fill = ..count..)) + ggtitle(
 g_age +
   geom_density(col="orange", aes(fill = Position), alpha=0.5) + facet_grid(.~Position) + 
   ggtitle("Fifa 20:Distribution based on Age and Position")
+
+
+########################################################################
+# Top 10 Countries:
+
+graphTopCountries(f16)
+graphTopCountries(f17)
+graphTopCountries(f18)
+graphTopCountries(f19)
+graphTopCountries(f20)
+
+########################################################################
+
 
 
