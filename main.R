@@ -84,6 +84,10 @@ g_age + geom_histogram(bins = 30,col="orange", aes(fill = ..count..)) + ggtitle(
 g_age +
   geom_density(col="orange", aes(fill = Position), alpha=0.5) + facet_grid(.~Position) + 
   ggtitle("Fifa 16:Distribution based on Age and Position")
+ggplot(f16, aes(Position)) + 
+  geom_bar(aes(fill = ..count..)) + 
+  ggtitle("Fifa 16:Distribution based on General Playing Position")
+
 
 # Fifa 17:
 g_age <- ggplot(data = f17, aes(age))
@@ -91,6 +95,9 @@ g_age + geom_histogram(bins = 30,col="orange", aes(fill = ..count..)) + ggtitle(
 g_age +
   geom_density(col="orange", aes(fill = Position), alpha=0.5) + facet_grid(.~Position) + 
   ggtitle("Fifa 17:Distribution based on Age and Position")
+ggplot(f17, aes(Position)) + 
+  geom_bar(aes(fill = ..count..)) + 
+  ggtitle("Fifa 17:Distribution based on General Playing Position")
 
 # Fifa 18:
 g_age <- ggplot(data = f18, aes(age))
@@ -98,6 +105,9 @@ g_age + geom_histogram(bins = 30,col="orange", aes(fill = ..count..)) + ggtitle(
 g_age +
   geom_density(col="orange", aes(fill = Position), alpha=0.5) + facet_grid(.~Position) + 
   ggtitle("Fifa 18:Distribution based on Age and Position")
+ggplot(f18, aes(Position)) + 
+  geom_bar(aes(fill = ..count..)) + 
+  ggtitle("Fifa 18:Distribution based on General Playing Position")
 
 # Fifa 19:
 g_age <- ggplot(data = f19, aes(age))
@@ -105,6 +115,9 @@ g_age + geom_histogram(bins = 30,col="orange", aes(fill = ..count..)) + ggtitle(
 g_age +
   geom_density(col="orange", aes(fill = Position), alpha=0.5) + facet_grid(.~Position) + 
   ggtitle("Fifa 19:Distribution based on Age and Position")
+ggplot(f19, aes(Position)) + 
+  geom_bar(aes(fill = ..count..)) + 
+  ggtitle("Fifa 19:Distribution based on General Playing Position")
 
 # Fifa 20:
 g_age <- ggplot(data = f20, aes(age))
@@ -112,6 +125,9 @@ g_age + geom_histogram(bins = 30,col="orange", aes(fill = ..count..)) + ggtitle(
 g_age +
   geom_density(col="orange", aes(fill = Position), alpha=0.5) + facet_grid(.~Position) + 
   ggtitle("Fifa 20:Distribution based on Age and Position")
+ggplot(f20, aes(Position)) + 
+  geom_bar(aes(fill = ..count..)) + 
+  ggtitle("Fifa 20:Distribution based on General Playing Position")
 
 
 ########################################################################
@@ -124,6 +140,45 @@ graphTopCountries(f19)
 graphTopCountries(f20)
 
 ########################################################################
+# Add Wage and value Labels:
 
+addWageandValueLevels <- function(df){
+  
+  wage_breaks <- c(0, 100000, 200000, 300000, 400000, 500000, Inf)
+  wage_labels <- c("0-100k", "100k-200k", "200k-300k", "300k-400k", "400k-500k", "500k+")
+  wage_brackets <- cut(x=df$wage_eur, breaks=wage_breaks, 
+                       labels=wage_labels, include.lowest = TRUE)
+  df <- mutate(df, wage_brackets)
+  
+  value_breaks <- c(0, 10000000, 20000000, 30000000, 40000000, 50000000, 60000000, 70000000, 80000000, 90000000, 100000000, Inf)
+  value_labels <- c("0-10M", "10-20M", "20-30M", "30-40M", "40-50M","50-60M", "60-70M", "70-80M", "80-90M","90-100M","100M+")
+  value_brackets <- cut(x=df$value_eur, breaks=value_breaks, 
+                        labels=value_labels, include.lowest = TRUE)
+  df <-mutate(df, value_brackets)
+  return(df)
+}
 
+f16 <- addWageandValueLevels(f16)
+f17 <- addWageandValueLevels(f17)
+f18 <- addWageandValueLevels(f18)
+f19 <- addWageandValueLevels(f19)
+f20 <- addWageandValueLevels(f20)
+
+#######################################################################
+# Wage Above 100k:
+
+plotWagesMoreThan100k <- function(df){
+  
+  not0To100K <- filter(df, wage_brackets != "0-100k")
+  ggplot(not0To100K, aes(x = wage_brackets)) + 
+    geom_bar(aes(fill = ..count..)) + 
+    ggtitle("Distribution of top Wage between 100K-500K+")
+  
+}
+
+plotWagesMoreThan100k(f16)
+plotWagesMoreThan100k(f17)
+plotWagesMoreThan100k(f18)
+plotWagesMoreThan100k(f19)
+plotWagesMoreThan100k(f20)
 
