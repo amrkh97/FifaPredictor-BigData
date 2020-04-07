@@ -182,3 +182,20 @@ plotWagesMoreThan100k(f18)
 plotWagesMoreThan100k(f19)
 plotWagesMoreThan100k(f20)
 
+######################################################################
+# Age vs Overall:
+plotAgevsOverall <- function(df){
+  g_age_overall <- ggplot(df, aes(age, overall))
+  g_age_overall + 
+    geom_point(aes(color=wage_brackets)) + geom_smooth(color="darkblue") + 
+    ggtitle("Distribution between Age and Overall of players based  on Wages")
+}
+
+plotAgevsOverall(f16)
+plotAgevsOverall(f17)
+plotAgevsOverall(f18)
+plotAgevsOverall(f19)
+plotAgevsOverall(f20)
+
+######################################################################
+
