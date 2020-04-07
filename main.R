@@ -213,4 +213,27 @@ plotValueAbove30M(f18)
 plotValueAbove30M(f19)
 plotValueAbove30M(f20)
 
+#####################################################################
+# Club Values:
+
+plotTopClubValue <- function(df){
+  group_clubs <- group_by(df, club)
+  club_value <- summarise(group_clubs, total_val = sum(value_eur))
+  top_10_valuable_clubs <- top_n(club_value, 10, total_val)
+  
+  top_10_valuable_clubs$Club <-as.factor(top_10_valuable_clubs$club)
+  
+  ggplot(top_10_valuable_clubs, aes(x = club, y = total_val)) + 
+    geom_bar(stat = "identity", aes(fill=total_val)) +
+    coord_flip() + ggtitle("Top 10 valuable clubs")
+}
+
+plotTopClubValue(f16)
+plotTopClubValue(f17)
+plotTopClubValue(f18)
+plotTopClubValue(f19)
+plotTopClubValue(f20)
+
+#####################################################################
+# 
 
