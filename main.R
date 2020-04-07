@@ -187,7 +187,7 @@ plotWagesMoreThan100k(f20)
 plotAgevsOverall <- function(df){
   g_age_overall <- ggplot(df, aes(age, overall))
   g_age_overall + 
-    geom_point(aes(color=wage_brackets)) + geom_smooth(color="darkblue") + 
+    geom_point(aes(color=wage_brackets), size=3) + geom_smooth(color="darkblue") + 
     ggtitle("Distribution between Age and Overall of players based  on Wages")
 }
 
@@ -198,4 +198,19 @@ plotAgevsOverall(f19)
 plotAgevsOverall(f20)
 
 ######################################################################
+# Market Value:
+
+plotValueAbove30M <- function(df){
+  moreThan30M <- filter(df, value_eur>30000000)
+  ggplot(moreThan30M, aes(x = value_brackets)) + 
+    geom_bar(aes(fill = ..count..)) + 
+    ggtitle("Distribution of value between 30M-100M+")
+}
+
+plotValueAbove30M(f16)
+plotValueAbove30M(f17)
+plotValueAbove30M(f18)
+plotValueAbove30M(f19)
+plotValueAbove30M(f20)
+
 
