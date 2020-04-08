@@ -10,7 +10,9 @@ getwd()
 
 library(dplyr)
 library(gridExtra)
+library(caret)
 library(ggplot2)
+library(ROCR)
 
 # Read datasets
 f16 <- read.csv("Dataset/players_16.csv")
@@ -22,7 +24,8 @@ f20 <- read.csv("Dataset/players_20.csv")
 # Get unnecessary columns
 unnecessaryColumns <- c("sofifa_id","player_url","dob","short_name",
                         "relaease_clause_eur","real_face","nation_position",
-                        "nation_jersey_number","mentality_composure")
+                        "nation_jersey_number","mentality_composure","loaned_from",
+                        "team_position","team_jersey_number","joined","contact_valid_until")
 
 # Remove unnecessary columns
 f16 <- f16[,!(names(f16) %in% unnecessaryColumns)]
@@ -235,5 +238,53 @@ plotTopClubValue(f19)
 plotTopClubValue(f20)
 
 #####################################################################
-# 
+# Predict Position based on attributes:
 
+unnecessaryColumns <- c("nationality","value_eur","wage_eur","player_positions",
+                        "international_reputation","work_rate",
+                        "body_type","release_clause_eur","player_tags",
+                        "team_position","team_jersey_number","joined","contract_valid_until",
+                        "player_traits","value_brackets","loaned_from",
+                        "age","long_name","club","overall","potential",
+                        "ls","st","rs","rw","lw","lf","cf","rf","lam",
+                        "cam","ram","lm","rm","cm","lcm","rcm","cdm",
+                        "ldm","rdm","lwb","rwb","lb","lcb","cb","rcb","rb",
+                        "wage_brackets","preferred_foot","gk_diving","gk_handling",
+                        "gk_kicking","gk_reflexes","gk_speed","gk_positioning")
+
+# Remove unnecessary columns
+tempTest <- f20[,!(names(f20) %in% unnecessaryColumns)]
+tempTest <- filter(tempTest, Position != "GK")
+
+x <- as.factor(tempTest$Position)
+x
+levels(x) <- list(DEF = c("DEF"), 
+                  ATT = c("FWD","MID"))
+tempTest <- mutate(tempTest, factor = x)
+
+tempTest <- tempTest[,!(names(tempTest) %in% c("Position"))]
+
+testSet <- tempTest[1:1000,]
+tempTest <- tempTest[1000:16242,]
+
+as.factor(tempTest$factor)
+as.factor(testSet$factor)
+
+mylogit <- glm(factor~.,data =tempTest, family=binomial(link="logit"),
+               na.action=na.omit)
+
+summary(mylogit)
+pred = predict(mylogit,newdata = testSet, type="response")
+pred = round(pred)
+pred
+
+table(pred)
+testSet$factor <- as.numeric(as.factor(testSet$factor)) - 1
+table(testSet$factor)
+
+cfmLR = confusionMatrix(
+  factor(pred, levels = 0:1),
+  factor(testSet$factor, levels = 0:1)
+)
+
+cfmLR
