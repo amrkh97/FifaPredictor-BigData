@@ -7,10 +7,11 @@ getwd()
 
 #install.packages("dplyr")
 #install.packages("gridExtra")
-
+#install.packages("rworldmap")
 library(dplyr)
 library(gridExtra)
 library(caret)
+library(rworldmap)
 library(e1071)
 library(ggplot2)
 library(ROCR)
@@ -227,6 +228,24 @@ graphTopCountries(f17)
 graphTopCountries(f18)
 graphTopCountries(f19)
 graphTopCountries(f20)
+
+countries_count <- count(f20, nationality)
+top10 <- top_n(countries_count, 10, n)
+top10 <- as.data.frame(top10)
+# Work-Around to graph UK
+levels(top10$nationality) <- c(levels(top10$nationality), "UK") 
+top10$nationality[top10$nationality == "England"]  <- "UK"
+
+fr <- joinCountryData2Map(dF = top10,joinCode = "NAME",nameJoinColumn = "nationality",verbose=F) # Prepare data to plot
+
+mapCountryData(mapToPlot = fr,nameColumnToPlot = "nationality",
+               catMethod = "fixedWidth",
+               oceanCol = "steelblue1",
+               missingCountryCol = "white",
+               mapTitle = "Number of players per Country",
+               colourPalette = "heat",
+               aspect = "variable",
+               addLegend = F)
 
 ########################################################################
 # Add Wage and value Labels:
