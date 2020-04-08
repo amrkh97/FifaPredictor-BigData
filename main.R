@@ -294,4 +294,13 @@ cfmLR = confusionMatrix(
 )
 
 cfmLR
+
+# Area Under Curve:
+predObj = prediction(pred, testSet$factor)
+rocObj = performance(predObj, measure="tpr", x.measure="fpr")
+aucObj = performance(predObj, measure="auc")
+auc = aucObj@y.values[[1]]
+auc
+plot(rocObj, main = paste("Area under the curve:", auc))
+
 ############################################################################
