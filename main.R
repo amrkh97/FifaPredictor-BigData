@@ -254,7 +254,9 @@ unnecessaryColumns <- c("nationality","value_eur","wage_eur","player_positions",
                         "cam","ram","lm","rm","cm","lcm","rcm","cdm",
                         "ldm","rdm","lwb","rwb","lb","lcb","cb","rcb","rb",
                         "wage_brackets","preferred_foot","gk_diving","gk_handling",
-                        "gk_kicking","gk_reflexes","gk_speed","gk_positioning")
+                        "gk_kicking","gk_reflexes","gk_speed","gk_positioning",
+                        "goalkeeping_diving","goalkeeping_handling","goalkeeping_kicking",
+                        "goalkeeping_positioning","goalkeeping_reflexes")
 
 # Remove unnecessary columns
 tempTest <- f20[,!(names(f20) %in% unnecessaryColumns)]
