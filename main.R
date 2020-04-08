@@ -5,16 +5,19 @@ rm(list=ls())
 # Get working directory
 getwd()
 
-#install.packages("dplyr")
-#install.packages("gridExtra")
-#install.packages("rworldmap")
+#install.packages(c("dplyr","gridExtra","rworldmap",
+#                   "randomForest","reshape2"))
+
+library(randomForest)
+library(caret)
+library(e1071)
+library(ROCR)
+
 library(dplyr)
 library(gridExtra)
-library(caret)
 library(rworldmap)
-library(e1071)
 library(ggplot2)
-library(ROCR)
+library(reshape2)
 
 # Read datasets
 f16 <- read.csv("Dataset/players_16.csv")
@@ -130,7 +133,7 @@ plotTopClubValue <- function(df){
 }
 
 
-predictSVM <- function(df){
+removeGKColumns <- function(df){
   
   removedColumns <- c("nationality","value_eur","wage_eur","player_positions",
                       "international_reputation","work_rate",
@@ -146,10 +149,16 @@ predictSVM <- function(df){
                       "goalkeeping_diving","goalkeeping_handling","goalkeeping_kicking",
                       "goalkeeping_positioning","goalkeeping_reflexes")
   
+  temp <- df[,!(names(df) %in% removedColumns)]
+  temp
+  temp <- filter(temp, Position != "GK")
+  return(temp) 
+}
+
+
+predictSVM <- function(df){
   
-  svmData <- df[,!(names(df) %in% removedColumns)]
-  svmData <- filter(svmData, Position != "GK")
-  
+  svmData <- removeGKColumns(df)  
   svmTest <- svmData[1:1000,]
   svmData <- svmData[1000:16242,]
   
@@ -159,6 +168,53 @@ predictSVM <- function(df){
   return(cfmSVM)
   
 }
+
+predictRandomForrest <- function(df){
+  
+  tempDF <- removeGKColumns(df)
+  testSet <- tempDF[1:1000,]
+  trainSet <- tempDF[1000:16242,]
+  testSet$Position <- factor(testSet$Position)
+  trainSet$Position <- factor(trainSet$Position)
+  # To generate same results:
+  set.seed(1)
+  
+  ranforrest= randomForest(Position ~., data= trainSet,
+                           mtry= 7, ntree= 250,na.action = na.omit,
+                           importance=TRUE)
+  rfpredict<- predict(ranforrest, testSet, type="class")
+  # To Calculate Accuracy
+  mean(rfpredict == testSet$Position)
+  return(table(predict=rfpredict, truth=testSet$Position))
+  
+}
+
+plotCorrelationHeatMap <- function(df){
+  
+  tempF <- removeGKColumns(df)
+  tempF$Position <- as.numeric(as.factor(tempF$Position))
+  cormat <- round(cor(tempF20),2)
+  # If we want to order the correlation map:
+  #dd <- as.dist((1-cormat)/2)
+  #hc <- hclust(dd)
+  #cormat <-cormat[hc$order, hc$order]
+  cormat[upper.tri(cormat)] <- NA
+  
+  melted_cormat <- melt(cormat, na.rm = TRUE)
+  
+  ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+    geom_tile(color = "white")+
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                         midpoint = 0, limit = c(-1,1), space = "Lab", 
+                         name="Pearson\nCorrelation") +
+    theme_minimal()+ 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0, 
+                                     size = 12, hjust = 1))+
+    coord_fixed(ratio= 1)
+  
+  
+}
+
 ####################################################################
 # Factorise player positions:
 f16 <- addPositionColumn(f16)
@@ -295,26 +351,9 @@ plotTopClubValue(f20)
 #####################################################################
 # Predict Position based on attributes:
 
-unnecessaryColumns <- c("nationality","value_eur","wage_eur","player_positions",
-                        "international_reputation","work_rate",
-                        "body_type","release_clause_eur","player_tags",
-                        "team_position","team_jersey_number","joined","contract_valid_until",
-                        "player_traits","value_brackets","loaned_from",
-                        "age","long_name","club","overall","potential",
-                        "ls","st","rs","rw","lw","lf","cf","rf","lam",
-                        "cam","ram","lm","rm","cm","lcm","rcm","cdm",
-                        "ldm","rdm","lwb","rwb","lb","lcb","cb","rcb","rb",
-                        "wage_brackets","preferred_foot","gk_diving","gk_handling",
-                        "gk_kicking","gk_reflexes","gk_speed","gk_positioning",
-                        "goalkeeping_diving","goalkeeping_handling","goalkeeping_kicking",
-                        "goalkeeping_positioning","goalkeeping_reflexes")
-
-# Remove unnecessary columns
-tempTest <- f20[,!(names(f20) %in% unnecessaryColumns)]
-tempTest <- filter(tempTest, Position != "GK")
+tempTest <- removeGKColumns(f20)
 
 x <- as.factor(tempTest$Position)
-x
 levels(x) <- list(DEF = c("DEF"), 
                   ATT = c("FWD","MID"))
 tempTest <- mutate(tempTest, factor = x)
@@ -339,12 +378,6 @@ table(pred)
 testSet$factor <- as.numeric(as.factor(testSet$factor)) - 1
 table(testSet$factor)
 
-cfmLR = confusionMatrix(
-  factor(pred, levels = 0:1),
-  factor(testSet$factor, levels = 0:1)
-)
-
-cfmLR
 
 # Area Under Curve:
 predObj = prediction(pred, testSet$factor)
@@ -354,18 +387,51 @@ auc = aucObj@y.values[[1]]
 auc
 plot(rocObj, main = paste("Area under the curve:", auc))
 
+
+cfmLR = confusionMatrix(
+  factor(pred, levels = 0:1),
+  factor(testSet$factor, levels = 0:1)
+)
+
+cfmLR
+
 ############################################################################
 # Predict using SVM:
 
-CMSVM_F16 <-predictSVM(f16)
-CMSVM_F17 <-predictSVM(f17)
-CMSVM_F18 <-predictSVM(f18)
-CMSVM_F19 <-predictSVM(f19)
-CMSVM_F20 <-predictSVM(f20)
+CMSVM_F16 <- predictSVM(f16)
+CMSVM_F17 <- predictSVM(f17)
+CMSVM_F18 <- predictSVM(f18)
+CMSVM_F19 <- predictSVM(f19)
+CMSVM_F20 <- predictSVM(f20)
 
-cfmLR
 CMSVM_F16
 CMSVM_F17
 CMSVM_F18
 CMSVM_F19
 CMSVM_F20
+
+############################################################################
+# WIP
+# Predict using Random Forrest:
+
+#CMRF_F16 <- predictRandomForrest(f16)
+#CMRF_F17 <- predictRandomForrest(f17)
+#CMRF_F18 <- predictRandomForrest(f18)
+#CMRF_F19 <- predictRandomForrest(f19)
+CMRF_F20 <- predictRandomForrest(f20)
+
+#CMRF_F16
+#CMRF_F17
+#CMRF_F18
+#CMRF_F19
+CMRF_F20
+
+
+############################################################################
+# Correlation:
+
+plotCorrelationHeatMap(f16)
+plotCorrelationHeatMap(f17)
+plotCorrelationHeatMap(f18)
+plotCorrelationHeatMap(f19)
+plotCorrelationHeatMap(f20)
