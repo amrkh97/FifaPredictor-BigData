@@ -41,12 +41,13 @@ top5leagues <- c("Arsenal","Manchester United","Manchester City","Liverpool","To
                  "Borussia Dortmund","FC Bayern MÃ¼nchen","RB Leipzig","Bayer 04 Leverkusen","Borussia MÃ¶nchengladbach","FC Schalke 04",
                  "Paris Saint-Germain","Olympique Lyonnais","LOSC Lille","Stade Rennais FC","AS Monaco")
 
+# WILL BE USED LATER
 # Keep top 5 leagues only
-top2016 <- f16[f16$club %in% top5leagues,]
-top2017 <- f17[f17$club %in% top5leagues,]
-top2018 <- f18[f18$club %in% top5leagues,]
-top2019 <- f19[f19$club %in% top5leagues,]
-top2020 <- f20[f20$club %in% top5leagues,]
+#top2016 <- f16[f16$club %in% top5leagues,]
+#top2017 <- f17[f17$club %in% top5leagues,]
+#top2018 <- f18[f18$club %in% top5leagues,]
+#top2019 <- f19[f19$club %in% top5leagues,]
+#top2020 <- f20[f20$club %in% top5leagues,]
 
 ########################################################################
 # Function Definitions:
@@ -72,6 +73,59 @@ graphTopCountries <- function(df){
     ggtitle("Distribution based on Nationality of Players (Top 10 Countries)")
 }
 
+
+addWageandValueLevels <- function(df){
+  
+  wage_breaks <- c(0, 100000, 200000, 300000, 400000, 500000, Inf)
+  wage_labels <- c("0-100k", "100k-200k", "200k-300k", "300k-400k", "400k-500k", "500k+")
+  wage_brackets <- cut(x=df$wage_eur, breaks=wage_breaks, 
+                       labels=wage_labels, include.lowest = TRUE)
+  df <- mutate(df, wage_brackets)
+  
+  value_breaks <- c(0, 10000000, 20000000, 30000000, 40000000, 50000000, 60000000, 70000000, 80000000, 90000000, 100000000, Inf)
+  value_labels <- c("0-10M", "10-20M", "20-30M", "30-40M", "40-50M","50-60M", "60-70M", "70-80M", "80-90M","90-100M","100M+")
+  value_brackets <- cut(x=df$value_eur, breaks=value_breaks, 
+                        labels=value_labels, include.lowest = TRUE)
+  df <-mutate(df, value_brackets)
+  return(df)
+}
+
+plotAgevsOverall <- function(df){
+  g_age_overall <- ggplot(df, aes(age, overall))
+  g_age_overall + 
+    geom_point(aes(color=wage_brackets), size=3) + geom_smooth(color="darkblue") + 
+    ggtitle("Distribution between Age and Overall of players based  on Wages")
+}
+
+
+plotWagesMoreThan100k <- function(df){
+  
+  not0To100K <- filter(df, wage_brackets != "0-100k")
+  ggplot(not0To100K, aes(x = wage_brackets)) + 
+    geom_bar(aes(fill = ..count..)) + 
+    ggtitle("Distribution of top Wage between 100K-500K+")
+  
+}
+
+plotValueAbove30M <- function(df){
+  moreThan30M <- filter(df, value_eur>30000000)
+  ggplot(moreThan30M, aes(x = value_brackets)) + 
+    geom_bar(aes(fill = ..count..)) + 
+    ggtitle("Distribution of value between 30M-100M+")
+}
+
+
+plotTopClubValue <- function(df){
+  group_clubs <- group_by(df, club)
+  club_value <- summarise(group_clubs, total_val = sum(value_eur))
+  top_10_valuable_clubs <- top_n(club_value, 10, total_val)
+  
+  top_10_valuable_clubs$Club <-as.factor(top_10_valuable_clubs$club)
+  
+  ggplot(top_10_valuable_clubs, aes(x = club, y = total_val)) + 
+    geom_bar(stat = "identity", aes(fill=total_val)) +
+    coord_flip() + ggtitle("Top 10 valuable clubs")
+}
 ####################################################################
 # Factorise player positions:
 f16 <- addPositionColumn(f16)
@@ -145,22 +199,6 @@ graphTopCountries(f20)
 ########################################################################
 # Add Wage and value Labels:
 
-addWageandValueLevels <- function(df){
-  
-  wage_breaks <- c(0, 100000, 200000, 300000, 400000, 500000, Inf)
-  wage_labels <- c("0-100k", "100k-200k", "200k-300k", "300k-400k", "400k-500k", "500k+")
-  wage_brackets <- cut(x=df$wage_eur, breaks=wage_breaks, 
-                       labels=wage_labels, include.lowest = TRUE)
-  df <- mutate(df, wage_brackets)
-  
-  value_breaks <- c(0, 10000000, 20000000, 30000000, 40000000, 50000000, 60000000, 70000000, 80000000, 90000000, 100000000, Inf)
-  value_labels <- c("0-10M", "10-20M", "20-30M", "30-40M", "40-50M","50-60M", "60-70M", "70-80M", "80-90M","90-100M","100M+")
-  value_brackets <- cut(x=df$value_eur, breaks=value_breaks, 
-                        labels=value_labels, include.lowest = TRUE)
-  df <-mutate(df, value_brackets)
-  return(df)
-}
-
 f16 <- addWageandValueLevels(f16)
 f17 <- addWageandValueLevels(f17)
 f18 <- addWageandValueLevels(f18)
@@ -170,15 +208,6 @@ f20 <- addWageandValueLevels(f20)
 #######################################################################
 # Wage Above 100k:
 
-plotWagesMoreThan100k <- function(df){
-  
-  not0To100K <- filter(df, wage_brackets != "0-100k")
-  ggplot(not0To100K, aes(x = wage_brackets)) + 
-    geom_bar(aes(fill = ..count..)) + 
-    ggtitle("Distribution of top Wage between 100K-500K+")
-  
-}
-
 plotWagesMoreThan100k(f16)
 plotWagesMoreThan100k(f17)
 plotWagesMoreThan100k(f18)
@@ -187,12 +216,6 @@ plotWagesMoreThan100k(f20)
 
 ######################################################################
 # Age vs Overall:
-plotAgevsOverall <- function(df){
-  g_age_overall <- ggplot(df, aes(age, overall))
-  g_age_overall + 
-    geom_point(aes(color=wage_brackets), size=3) + geom_smooth(color="darkblue") + 
-    ggtitle("Distribution between Age and Overall of players based  on Wages")
-}
 
 plotAgevsOverall(f16)
 plotAgevsOverall(f17)
@@ -203,13 +226,6 @@ plotAgevsOverall(f20)
 ######################################################################
 # Market Value:
 
-plotValueAbove30M <- function(df){
-  moreThan30M <- filter(df, value_eur>30000000)
-  ggplot(moreThan30M, aes(x = value_brackets)) + 
-    geom_bar(aes(fill = ..count..)) + 
-    ggtitle("Distribution of value between 30M-100M+")
-}
-
 plotValueAbove30M(f16)
 plotValueAbove30M(f17)
 plotValueAbove30M(f18)
@@ -218,18 +234,6 @@ plotValueAbove30M(f20)
 
 #####################################################################
 # Club Values:
-
-plotTopClubValue <- function(df){
-  group_clubs <- group_by(df, club)
-  club_value <- summarise(group_clubs, total_val = sum(value_eur))
-  top_10_valuable_clubs <- top_n(club_value, 10, total_val)
-  
-  top_10_valuable_clubs$Club <-as.factor(top_10_valuable_clubs$club)
-  
-  ggplot(top_10_valuable_clubs, aes(x = club, y = total_val)) + 
-    geom_bar(stat = "identity", aes(fill=total_val)) +
-    coord_flip() + ggtitle("Top 10 valuable clubs")
-}
 
 plotTopClubValue(f16)
 plotTopClubValue(f17)
@@ -288,3 +292,4 @@ cfmLR = confusionMatrix(
 )
 
 cfmLR
+############################################################################
