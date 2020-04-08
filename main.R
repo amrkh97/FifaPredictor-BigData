@@ -11,6 +11,7 @@ getwd()
 library(dplyr)
 library(gridExtra)
 library(caret)
+library(e1071)
 library(ggplot2)
 library(ROCR)
 
@@ -125,6 +126,37 @@ plotTopClubValue <- function(df){
   ggplot(top_10_valuable_clubs, aes(x = club, y = total_val)) + 
     geom_bar(stat = "identity", aes(fill=total_val)) +
     coord_flip() + ggtitle("Top 10 valuable clubs")
+}
+
+
+predictSVM <- function(df){
+  
+  removedColumns <- c("nationality","value_eur","wage_eur","player_positions",
+                      "international_reputation","work_rate",
+                      "body_type","release_clause_eur","player_tags",
+                      "team_position","team_jersey_number","joined","contract_valid_until",
+                      "player_traits","value_brackets","loaned_from",
+                      "age","long_name","club","overall","potential",
+                      "ls","st","rs","rw","lw","lf","cf","rf","lam",
+                      "cam","ram","lm","rm","cm","lcm","rcm","cdm",
+                      "ldm","rdm","lwb","rwb","lb","lcb","cb","rcb","rb",
+                      "wage_brackets","preferred_foot","gk_diving","gk_handling",
+                      "gk_kicking","gk_reflexes","gk_speed","gk_positioning",
+                      "goalkeeping_diving","goalkeeping_handling","goalkeeping_kicking",
+                      "goalkeeping_positioning","goalkeeping_reflexes")
+  
+  
+  svmData <- df[,!(names(df) %in% removedColumns)]
+  svmData <- filter(svmData, Position != "GK")
+  
+  svmTest <- svmData[1:1000,]
+  svmData <- svmData[1000:16242,]
+  
+  model <- svm(Position~. ,data=svmData,kernel = "linear")
+  predictionSVM <- predict(model,svmTest)
+  cfmSVM<-confusionMatrix(predictionSVM,svmTest$Position)
+  return(cfmSVM)
+  
 }
 ####################################################################
 # Factorise player positions:
@@ -304,3 +336,17 @@ auc
 plot(rocObj, main = paste("Area under the curve:", auc))
 
 ############################################################################
+# Predict using SVM:
+
+CMSVM_F16 <-predictSVM(f16)
+CMSVM_F17 <-predictSVM(f17)
+CMSVM_F18 <-predictSVM(f18)
+CMSVM_F19 <-predictSVM(f19)
+CMSVM_F20 <-predictSVM(f20)
+
+cfmLR
+CMSVM_F16
+CMSVM_F17
+CMSVM_F18
+CMSVM_F19
+CMSVM_F20
