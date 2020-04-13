@@ -193,7 +193,7 @@ plotCorrelationHeatMap <- function(df){
   
   tempF <- removeGKColumns(df)
   tempF$Position <- as.numeric(as.factor(tempF$Position))
-  cormat <- round(cor(tempF20),2)
+  cormat <- round(cor(tempF),2)
   # If we want to order the correlation map:
   #dd <- as.dist((1-cormat)/2)
   #hc <- hclust(dd)
@@ -213,6 +213,37 @@ plotCorrelationHeatMap <- function(df){
     coord_fixed(ratio= 1)
   
   
+}
+
+prepareFootData <- function(df){
+  removedColumns <- c("nationality","value_eur","wage_eur","player_positions",
+                      "international_reputation","work_rate",
+                      "body_type","release_clause_eur","player_tags",
+                      "team_position","team_jersey_number","joined","contract_valid_until",
+                      "player_traits","value_brackets","loaned_from",
+                      "age","long_name","club","overall","potential",
+                      "ls","st","rs","rw","lw","lf","cf","rf","lam",
+                      "cam","ram","lm","rm","cm","lcm","rcm","cdm",
+                      "ldm","rdm","lwb","rwb","lb","lcb","cb","rcb","rb",
+                      "wage_brackets","preferred_foot","gk_diving","gk_handling",
+                      "gk_kicking","gk_reflexes","gk_speed","gk_positioning",
+                      "goalkeeping_diving","goalkeeping_handling","goalkeeping_kicking",
+                      "goalkeeping_positioning","goalkeeping_reflexes", "Position")
+  
+  temp <- df[,!(names(df) %in% removedColumns)]
+  temp
+  temp <- temp[complete.cases(temp), ]
+  return(temp)
+}
+
+addFootColumn <- function(df){
+  df$player_positions <- gsub(" ", "", substr(df$player_positions, 1, 2))
+  df$player_positions <- gsub(",", "", substr(df$player_positions, 1, 2))
+  x <- as.factor(df$preferred_foot)
+  levels(x) <- list(LEFT  = c("Left"), 
+                    RIGHT = c("Right"))
+  df <- mutate(df, foot = x)
+  return(df)
 }
 
 ####################################################################
@@ -435,3 +466,121 @@ plotCorrelationHeatMap(f17)
 plotCorrelationHeatMap(f18)
 plotCorrelationHeatMap(f19)
 plotCorrelationHeatMap(f20)
+
+###########################################################################
+# Predict position with backward elemmination
+f20temp <- removeGKColumns(f20)
+x <- as.factor(f20temp$Position)
+levels(x) <- list(DEF = c("DEF"), 
+                  ATT = c("FWD","MID"))
+f20temp <- mutate(f20temp, factor = x)
+
+f20temp <- f20temp[,!(names(f20temp) %in% c("Position"))]
+
+f20temp <- f20temp[1000:16242,]
+f20temptestSet <- f20temp[1:1000,]
+
+as.factor(f20temp$factor)
+as.factor(f20temptestSet$factor)
+
+modeltest <- glm(factor~.,data =f20temp, family=binomial(link="logit"),
+               na.action=na.omit)
+
+summary(modeltest)
+
+step(modeltest, direction = "backward")
+
+modelfiltered <- glm(factor ~ dribbling + defending + physic + attacking_crossing + 
+     attacking_finishing + attacking_heading_accuracy + attacking_short_passing + 
+     skill_curve + skill_long_passing + movement_sprint_speed + 
+     movement_balance + power_shot_power + power_jumping + power_stamina + 
+     power_long_shots + mentality_aggression + mentality_vision + 
+     mentality_penalties + defending_marking + defending_sliding_tackle, 
+   family = binomial(link = "logit"), data = f20temp, na.action = na.omit)
+
+summary(modelfiltered)
+
+pred = predict(modelfiltered,newdata = f20temptestSet, type="response")
+pred = round(pred)
+pred
+
+table(pred)
+f20temptestSet$factor <- as.numeric(as.factor(f20temptestSet$factor)) - 1
+table(f20temptestSet$factor)
+
+
+# Area Under Curve:
+predObj = prediction(pred, f20temptestSet$factor)
+rocObj = performance(predObj, measure="tpr", x.measure="fpr")
+aucObj = performance(predObj, measure="auc")
+auc = aucObj@y.values[[1]]
+auc
+plot(rocObj, main = paste("Area under the curve:", auc))
+
+
+cfmLR = confusionMatrix(
+  factor(pred, levels = 0:1),
+  factor(f20temptestSet$factor, levels = 0:1)
+)
+
+cfmLR
+###########################################################################
+# Predict faviourite foot with backward elemmination
+f20 <- addFootColumn(f20)
+f20temp <- prepareFootData(f20)
+x <- as.factor(f20temp$foot)
+levels(x) <- list(LEFT = c("Left"), 
+                  RIGHT = c("Right"))
+f20temp <- mutate(f20temp, factor = x)
+
+f20temp <- f20temp[,!(names(f20temp) %in% c("foot"))]
+
+f20temp <- f20temp[1000:16242,]
+f20temptestSet <- f20temp[1:1000,]
+
+as.factor(f20temp$factor)
+as.factor(f20temptestSet$factor)
+
+modeltest <- glm(factor~.,data =f20temp, family=binomial(link="logit"),
+                 na.action=na.omit)
+
+summary(modeltest)
+
+step(modeltest, direction = "backward")
+
+modelfiltered <- glm(factor ~ height_cm + weak_foot + skill_moves + 
+                       shooting + dribbling + defending + physic + attacking_crossing + 
+                       attacking_short_passing + attacking_volleys + skill_curve + 
+                       skill_fk_accuracy + skill_long_passing + movement_agility + 
+                       movement_reactions + power_jumping + power_stamina + power_strength + 
+                       mentality_aggression + mentality_interceptions + mentality_vision + 
+                       mentality_penalties + defending_marking + defending_standing_tackle + 
+                       defending_sliding_tackle, family = binomial(link = "logit"), 
+                     data = f20temp, na.action = na.omit)
+
+summary(modelfiltered)
+
+pred = predict(modelfiltered,newdata = f20temptestSet, type="response")
+pred = round(pred)
+pred
+
+table(pred)
+f20temptestSet$factor <- as.numeric(as.factor(f20temptestSet$factor)) - 1
+table(f20temptestSet$factor)
+
+
+# Area Under Curve:
+predObj = prediction(pred, f20temptestSet$factor)
+rocObj = performance(predObj, measure="tpr", x.measure="fpr")
+aucObj = performance(predObj, measure="auc")
+auc = aucObj@y.values[[1]]
+auc
+plot(rocObj, main = paste("Area under the curve:", auc))
+
+
+cfmLR = confusionMatrix(
+  factor(pred, levels = 0:1),
+  factor(f20temptestSet$factor, levels = 0:1)
+)
+
+cfmLR
