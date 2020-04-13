@@ -6,13 +6,12 @@ rm(list=ls())
 getwd()
 
 #install.packages(c("dplyr","gridExtra","rworldmap",
-#                   "randomForest","reshape2"))
-
+#                   "randomForest","reshape2","stringi"))
 library(randomForest)
 library(caret)
 library(e1071)
 library(ROCR)
-
+library(stringi)
 library(dplyr)
 library(gridExtra)
 library(rworldmap)
@@ -193,7 +192,8 @@ plotCorrelationHeatMap <- function(df){
   
   tempF <- removeGKColumns(df)
   tempF$Position <- as.numeric(as.factor(tempF$Position))
-  cormat <- round(cor(tempF20),2)
+  tempF
+  cormat <- round(cor(tempF),2)
   # If we want to order the correlation map:
   #dd <- as.dist((1-cormat)/2)
   #hc <- hclust(dd)
@@ -215,6 +215,26 @@ plotCorrelationHeatMap <- function(df){
   
 }
 
+helperFun <- function(column){
+  column <- unlist(stri_split_regex(column, "\\+|-", n_max = 1))[1]
+  
+}
+
+handleNonNumericAttributes <- function(df){
+  
+  df[34:92] <- apply(df[34:92],MARGIN = 2 ,helperFun)
+  return(df)
+}
+
+####################################################################
+# Handle String attributes that caused errors:
+# For Example: attacking_crossing, ls and similar attributes.
+f16 <- handleNonNumericAttributes(f16)
+f17 <- handleNonNumericAttributes(f17)
+f18 <- handleNonNumericAttributes(f18)
+f19 <- handleNonNumericAttributes(f19)
+f20 <- handleNonNumericAttributes(f20)
+
 ####################################################################
 # Factorise player positions:
 f16 <- addPositionColumn(f16)
@@ -222,6 +242,8 @@ f17 <- addPositionColumn(f17)
 f18 <- addPositionColumn(f18)
 f19 <- addPositionColumn(f19)
 f20 <- addPositionColumn(f20)
+
+####################################################################
 #Age Statistics:
 
 # Fifa 16:
@@ -430,8 +452,8 @@ CMRF_F20
 ############################################################################
 # Correlation:
 
-plotCorrelationHeatMap(f16)
-plotCorrelationHeatMap(f17)
-plotCorrelationHeatMap(f18)
-plotCorrelationHeatMap(f19)
+#plotCorrelationHeatMap(f16)
+#plotCorrelationHeatMap(f17)
+#plotCorrelationHeatMap(f18)
+#plotCorrelationHeatMap(f19)
 plotCorrelationHeatMap(f20)
