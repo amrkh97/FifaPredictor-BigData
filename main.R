@@ -6,13 +6,12 @@ rm(list=ls())
 getwd()
 
 #install.packages(c("dplyr","gridExtra","rworldmap",
-#                   "randomForest","reshape2"))
-
+#                   "randomForest","reshape2","stringi"))
 library(randomForest)
 library(caret)
 library(e1071)
 library(ROCR)
-
+library(stringi)
 library(dplyr)
 library(gridExtra)
 library(rworldmap)
@@ -195,22 +194,23 @@ plotCorrelationHeatMap <- function(df){
   tempF$Position <- as.numeric(as.factor(tempF$Position))
   cormat <- round(cor(tempF),2)
   # If we want to order the correlation map:
-  #dd <- as.dist((1-cormat)/2)
-  #hc <- hclust(dd)
-  #cormat <-cormat[hc$order, hc$order]
+  dd <- as.dist((1-cormat)/2)
+  hc <- hclust(dd)
+  cormat <-cormat[hc$order, hc$order]
   cormat[upper.tri(cormat)] <- NA
   
   melted_cormat <- melt(cormat, na.rm = TRUE)
   
-  ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+  ggplot(data = melted_cormat, aes(reorder(Var2), reorder(Var1), fill = value))+
     geom_tile(color = "white")+
     scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
                          midpoint = 0, limit = c(-1,1), space = "Lab", 
                          name="Pearson\nCorrelation") +
     theme_minimal()+ 
     theme(axis.text.x = element_text(angle = 90, vjust = 0, 
-                                     size = 12, hjust = 1))+
-    coord_fixed(ratio= 1)
+                                     size = 11, hjust = 1))+
+    coord_fixed(ratio= 1)+
+    xlab("Attributes")+ylab(" ")
   
   
 }
@@ -246,6 +246,26 @@ addFootColumn <- function(df){
   return(df)
 }
 
+helperFun <- function(column){
+  column <- as.numeric(unlist(stri_split_regex(column, "\\+|-", n_max = 1))[1])
+  
+}
+
+handleNonNumericAttributes <- function(df){
+  
+  df[34:92] <- apply(df[34:92],MARGIN = 2 ,helperFun)
+  return(df)
+}
+
+####################################################################
+# Handle String attributes that caused errors:
+# For Example: attacking_crossing, ls and similar attributes.
+f16 <- handleNonNumericAttributes(f16)
+f17 <- handleNonNumericAttributes(f17)
+f18 <- handleNonNumericAttributes(f18)
+f19 <- handleNonNumericAttributes(f19)
+f20 <- handleNonNumericAttributes(f20)
+
 ####################################################################
 # Factorise player positions:
 f16 <- addPositionColumn(f16)
@@ -253,6 +273,8 @@ f17 <- addPositionColumn(f17)
 f18 <- addPositionColumn(f18)
 f19 <- addPositionColumn(f19)
 f20 <- addPositionColumn(f20)
+
+####################################################################
 #Age Statistics:
 
 # Fifa 16:
@@ -442,19 +464,18 @@ CMSVM_F19
 CMSVM_F20
 
 ############################################################################
-# WIP
 # Predict using Random Forrest:
 
-#CMRF_F16 <- predictRandomForrest(f16)
-#CMRF_F17 <- predictRandomForrest(f17)
-#CMRF_F18 <- predictRandomForrest(f18)
-#CMRF_F19 <- predictRandomForrest(f19)
+CMRF_F16 <- predictRandomForrest(f16)
+CMRF_F17 <- predictRandomForrest(f17)
+CMRF_F18 <- predictRandomForrest(f18)
+CMRF_F19 <- predictRandomForrest(f19)
 CMRF_F20 <- predictRandomForrest(f20)
 
-#CMRF_F16
-#CMRF_F17
-#CMRF_F18
-#CMRF_F19
+CMRF_F16
+CMRF_F17
+CMRF_F18
+CMRF_F19
 CMRF_F20
 
 
