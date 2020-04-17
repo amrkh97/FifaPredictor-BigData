@@ -1,5 +1,3 @@
-# Clear console (Can be done by pressing ctrl/cmd + L)
-cat("\014")
 # Clear environment
 rm(list=ls())
 # Get working directory
@@ -17,6 +15,8 @@ library(gridExtra)
 library(rworldmap)
 library(ggplot2)
 library(reshape2)
+library(arules)
+library(arulesViz)
 
 # Read datasets
 f16 <- read.csv("Dataset/players_16.csv")
@@ -225,6 +225,9 @@ handleNonNumericAttributes <- function(df){
   df[34:92] <- apply(df[34:92],MARGIN = 2 ,helperFun)
   return(df)
 }
+
+# Clear console
+cat("\014")
 
 ####################################################################
 # Handle String attributes that caused errors:
@@ -456,3 +459,150 @@ plotCorrelationHeatMap(f17)
 plotCorrelationHeatMap(f18)
 plotCorrelationHeatMap(f19)
 plotCorrelationHeatMap(f20)
+
+############################################################################
+# Associations:
+
+# Getting columns of association rules while removing empty rows
+# Note: playerPositions have no empty rows check using any(playerPositions == "")
+playerTags16 <- data.frame(f16$player_tags[f16$player_tags != ""])
+playerTags17 <- data.frame(f17$player_tags[f17$player_tags != ""])
+playerTags18 <- data.frame(f18$player_tags[f18$player_tags != ""])
+playerTags19 <- data.frame(f19$player_tags[f19$player_tags != ""])
+playerTags20 <- data.frame(f20$player_tags[f20$player_tags != ""])
+
+playerTraits16 <- data.frame(f16$player_traits[f16$player_traits != ""])
+playerTraits17 <- data.frame(f17$player_traits[f17$player_traits != ""])
+playerTraits18 <- data.frame(f18$player_traits[f18$player_traits != ""])
+playerTraits19 <- data.frame(f19$player_traits[f19$player_traits != ""])
+playerTraits20 <- data.frame(f20$player_traits[f20$player_traits != ""])
+
+playerPositions16 <- data.frame(f16$player_positions)
+playerPositions17 <- data.frame(f17$player_positions)
+playerPositions18 <- data.frame(f18$player_positions)
+playerPositions19 <- data.frame(f19$player_positions)
+playerPositions20 <- data.frame(f20$player_positions)
+
+# Removing spaces, hash symbil, and '?'
+playerTags16 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags16[[1]])
+playerTags17 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags17[[1]])
+playerTags18 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags18[[1]])
+playerTags19 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags19[[1]])
+playerTags20 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags20[[1]])
+
+playerTraits16 <- gsub("\\s", "", playerTraits16[[1]])
+playerTraits17 <- gsub("\\s", "", playerTraits17[[1]])
+playerTraits18 <- gsub("\\s", "", playerTraits18[[1]])
+playerTraits19 <- gsub("\\s", "", playerTraits19[[1]])
+playerTraits20 <- gsub("\\s", "", playerTraits20[[1]])
+
+playerPositions16 <- gsub("\\s", "", playerPositions16[[1]])
+playerPositions17 <- gsub("\\s", "", playerPositions17[[1]])
+playerPositions18 <- gsub("\\s", "", playerPositions18[[1]])
+playerPositions19 <- gsub("\\s", "", playerPositions19[[1]])
+playerPositions20 <- gsub("\\s", "", playerPositions20[[1]])
+
+# Converting to transacions
+playerTags16 <- as(strsplit(playerTags16, ","), "transactions")
+playerTags17 <- as(strsplit(playerTags17, ","), "transactions")
+playerTags18 <- as(strsplit(playerTags18, ","), "transactions")
+playerTags19 <- as(strsplit(playerTags19, ","), "transactions")
+playerTags20 <- as(strsplit(playerTags20, ","), "transactions")
+
+playerTraits16 <- as(strsplit(playerTraits16, ","), "transactions")
+playerTraits17 <- as(strsplit(playerTraits17, ","), "transactions")
+playerTraits18 <- as(strsplit(playerTraits18, ","), "transactions")
+playerTraits19 <- as(strsplit(playerTraits19, ","), "transactions")
+playerTraits20 <- as(strsplit(playerTraits20, ","), "transactions")
+
+playerPositions16 <- as(strsplit(playerPositions16, ","), "transactions")
+playerPositions17 <- as(strsplit(playerPositions17, ","), "transactions")
+playerPositions18 <- as(strsplit(playerPositions18, ","), "transactions")
+playerPositions19 <- as(strsplit(playerPositions19, ","), "transactions")
+playerPositions20 <- as(strsplit(playerPositions20, ","), "transactions")
+
+# Frequency Plots
+itemFrequencyPlot(playerTags16, topN = 5)
+itemFrequencyPlot(playerTags17, topN = 5)
+itemFrequencyPlot(playerTags18, topN = 5)
+itemFrequencyPlot(playerTags19, topN = 5)
+itemFrequencyPlot(playerTags20, topN = 5)
+
+itemFrequencyPlot(playerTraits16, topN = 5)
+itemFrequencyPlot(playerTraits17, topN = 5)
+itemFrequencyPlot(playerTraits18, topN = 5)
+itemFrequencyPlot(playerTraits19, topN = 5)
+itemFrequencyPlot(playerTraits20, topN = 5)
+
+itemFrequencyPlot(playerPositions16, topN = 5)
+itemFrequencyPlot(playerPositions17, topN = 5)
+itemFrequencyPlot(playerPositions18, topN = 5)
+itemFrequencyPlot(playerPositions19, topN = 5)
+itemFrequencyPlot(playerPositions20, topN = 5)
+
+# Using the Apriori Algorithm
+playerTagsAssociationRules16 <- apriori(data = playerTags16, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerTagsAssociationRules17 <- apriori(data = playerTags17, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerTagsAssociationRules18 <- apriori(data = playerTags18, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerTagsAssociationRules19 <- apriori(data = playerTags19, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerTagsAssociationRules20 <- apriori(data = playerTags20, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+
+inspect(playerTagsAssociationRules16)
+inspect(playerTagsAssociationRules17)
+inspect(playerTagsAssociationRules18)
+inspect(playerTagsAssociationRules19)
+inspect(playerTagsAssociationRules20)
+
+# inspect(sort(playerTagsAssociationRules16, by = "support"))
+# inspect(sort(playerTagsAssociationRules16, by = "confidence"))
+# inspect(sort(playerTagsAssociationRules16, by = "lift"))
+
+plot(playerTagsAssociationRules16, jitter = 0, engine = "plotly")
+plot(playerTagsAssociationRules17, jitter = 0, engine = "plotly")
+plot(playerTagsAssociationRules18, jitter = 0, engine = "plotly")
+plot(playerTagsAssociationRules19, jitter = 0, engine = "plotly")
+plot(playerTagsAssociationRules20, jitter = 0, engine = "plotly")
+
+playerTraitsAssociationRules16 <- apriori(data = playerTraits16, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerTraitsAssociationRules17 <- apriori(data = playerTraits17, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerTraitsAssociationRules18 <- apriori(data = playerTraits18, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerTraitsAssociationRules19 <- apriori(data = playerTraits19, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerTraitsAssociationRules20 <- apriori(data = playerTraits20, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+
+inspect(playerTraitsAssociationRules16)
+inspect(playerTraitsAssociationRules17)
+inspect(playerTraitsAssociationRules18)
+inspect(playerTraitsAssociationRules19)
+inspect(playerTraitsAssociationRules20)
+
+# inspect(sort(playerTraitsAssociationRules, by = "support"))
+# inspect(sort(playerTraitsAssociationRules, by = "confidence"))
+# inspect(sort(playerTraitsAssociationRules, by = "lift"))
+
+plot(playerTraitsAssociationRules16, jitter = 0, engine = "plotly")
+plot(playerTraitsAssociationRules17, jitter = 0, engine = "plotly")
+plot(playerTraitsAssociationRules18, jitter = 0, engine = "plotly")
+plot(playerTraitsAssociationRules19, jitter = 0, engine = "plotly")
+plot(playerTraitsAssociationRules20, jitter = 0, engine = "plotly")
+
+playerPositionsAssociationRules16 <- apriori(data = playerPositions16, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerPositionsAssociationRules17 <- apriori(data = playerPositions17, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerPositionsAssociationRules18 <- apriori(data = playerPositions18, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerPositionsAssociationRules19 <- apriori(data = playerPositions19, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+playerPositionsAssociationRules20 <- apriori(data = playerPositions20, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+
+inspect(playerPositionsAssociationRules16)
+inspect(playerPositionsAssociationRules17)
+inspect(playerPositionsAssociationRules18)
+inspect(playerPositionsAssociationRules19)
+inspect(playerPositionsAssociationRules20)
+
+# inspect(sort(playerPositionsAssociationRules, by = "support"))
+# inspect(sort(playerPositionsAssociationRules, by = "confidence"))
+# inspect(sort(playerPositionsAssociationRules, by = "lift"))
+
+plot(playerPositionsAssociationRules16, jitter = 0, engine = "plotly")
+plot(playerPositionsAssociationRules17, jitter = 0, engine = "plotly")
+plot(playerPositionsAssociationRules18, jitter = 0, engine = "plotly")
+plot(playerPositionsAssociationRules19, jitter = 0, engine = "plotly")
+plot(playerPositionsAssociationRules20, jitter = 0, engine = "plotly")
