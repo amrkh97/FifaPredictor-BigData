@@ -422,6 +422,12 @@ as.factor(testSet$factor)
 mylogit <- glm(factor~.,data =tempTest, family=binomial(link="logit"),
                na.action=na.omit)
 
+step(mylogit, direction = "backward")
+
+mylogit <- glm(factor ~ weight_kg + weak_foot + skill_moves + 
+                 pace + shooting + passing + dribbling + defending + physic, 
+               family = binomial(link = "logit"), data = tempTest, na.action = na.omit)
+
 summary(mylogit)
 pred = predict(mylogit,newdata = testSet, type="response")
 pred = round(pred)
@@ -488,120 +494,34 @@ plotCorrelationHeatMap(f18)
 plotCorrelationHeatMap(f19)
 plotCorrelationHeatMap(f20)
 
-###########################################################################
-# Predict position with backward elemmination
-f20temp <- removeGKColumns(f20)
-x <- as.factor(f20temp$Position)
-levels(x) <- list(DEF = c("DEF"), 
-                  ATT = c("FWD","MID"))
-f20temp <- mutate(f20temp, factor = x)
-
-f20temp <- f20temp[,!(names(f20temp) %in% c("Position"))]
-
-f20temp <- f20temp[1000:16242,]
-f20temptestSet <- f20temp[1:1000,]
-
-as.factor(f20temp$factor)
-as.factor(f20temptestSet$factor)
-
-modeltest <- glm(factor~.,data =f20temp, family=binomial(link="logit"),
-               na.action=na.omit)
-
-summary(modeltest)
-
-step(modeltest, direction = "backward")
-
-modelfiltered <- glm(factor ~ dribbling + defending + physic + attacking_crossing + 
-     attacking_finishing + attacking_heading_accuracy + attacking_short_passing + 
-     skill_curve + skill_long_passing + movement_sprint_speed + 
-     movement_balance + power_shot_power + power_jumping + power_stamina + 
-     power_long_shots + mentality_aggression + mentality_vision + 
-     mentality_penalties + defending_marking + defending_sliding_tackle, 
-   family = binomial(link = "logit"), data = f20temp, na.action = na.omit)
-
-summary(modelfiltered)
-
-pred = predict(modelfiltered,newdata = f20temptestSet, type="response")
-pred = round(pred)
-pred
-
-table(pred)
-f20temptestSet$factor <- as.numeric(as.factor(f20temptestSet$factor)) - 1
-table(f20temptestSet$factor)
-
-
-# Area Under Curve:
-predObj = prediction(pred, f20temptestSet$factor)
-rocObj = performance(predObj, measure="tpr", x.measure="fpr")
-aucObj = performance(predObj, measure="auc")
-auc = aucObj@y.values[[1]]
-auc
-plot(rocObj, main = paste("Area under the curve:", auc))
-
-
-cfmLR = confusionMatrix(
-  factor(pred, levels = 0:1),
-  factor(f20temptestSet$factor, levels = 0:1)
-)
-
-cfmLR
-###########################################################################
-# Predict faviourite foot with backward elemmination
-f20 <- addFootColumn(f20)
-f20temp <- prepareFootData(f20)
-x <- as.factor(f20temp$foot)
-levels(x) <- list(LEFT = c("Left"), 
-                  RIGHT = c("Right"))
-f20temp <- mutate(f20temp, factor = x)
-
-f20temp <- f20temp[,!(names(f20temp) %in% c("foot"))]
-
-f20temp <- f20temp[1000:16242,]
-f20temptestSet <- f20temp[1:1000,]
-
-as.factor(f20temp$factor)
-as.factor(f20temptestSet$factor)
-
-modeltest <- glm(factor~.,data =f20temp, family=binomial(link="logit"),
-                 na.action=na.omit)
-
-summary(modeltest)
-
-step(modeltest, direction = "backward")
-
-modelfiltered <- glm(factor ~ height_cm + weak_foot + skill_moves + 
-                       shooting + dribbling + defending + physic + attacking_crossing + 
-                       attacking_short_passing + attacking_volleys + skill_curve + 
-                       skill_fk_accuracy + skill_long_passing + movement_agility + 
-                       movement_reactions + power_jumping + power_stamina + power_strength + 
-                       mentality_aggression + mentality_interceptions + mentality_vision + 
-                       mentality_penalties + defending_marking + defending_standing_tackle + 
-                       defending_sliding_tackle, family = binomial(link = "logit"), 
-                     data = f20temp, na.action = na.omit)
-
-summary(modelfiltered)
-
-pred = predict(modelfiltered,newdata = f20temptestSet, type="response")
-pred = round(pred)
-pred
-
-table(pred)
-f20temptestSet$factor <- as.numeric(as.factor(f20temptestSet$factor)) - 1
-table(f20temptestSet$factor)
-
-
-# Area Under Curve:
-predObj = prediction(pred, f20temptestSet$factor)
-rocObj = performance(predObj, measure="tpr", x.measure="fpr")
-aucObj = performance(predObj, measure="auc")
-auc = aucObj@y.values[[1]]
-auc
-plot(rocObj, main = paste("Area under the curve:", auc))
-
-
-cfmLR = confusionMatrix(
-  factor(pred, levels = 0:1),
-  factor(f20temptestSet$factor, levels = 0:1)
-)
-
-cfmLR
+############################################################################
+# Association Rules For Position:
+library(arules)
+library(arulesViz)
+library(dplyr)
+f20temp <- f20[!(f20$Position =="GK"),]
+f20temp <- f20temp[ , colSums(is.na(f20temp)) == 0]
+f20temp <- f20temp[complete.cases(f20temp), ]
+f20temp <- f20temp %>%select(Position, pace, shooting, passing, dribbling, defending, physic)
+f20temp[,2] <- factor(f20temp[,2])
+f20temp[,3] <- factor(f20temp[,3])
+f20temp[,4] <- factor(f20temp[,3])
+f20temp[,5] <- factor(f20temp[,3])
+f20temp[,6] <- factor(f20temp[,3])
+f20temp[,7] <- factor(f20temp[,3])
+f20_transaction <- as(f20temp,"transactions")
+inspect(f20_transaction[1:10])
+itemFrequency(f20_transaction[1:10])
+itemFrequencyPlot(f20_transaction, topN = 5)
+associationRules <- apriori(data=f20_transaction, parameter=list (supp=0.001,conf = 0.08), 
+                            appearance = list (default="lhs",rhs= c("Position=GK", "Position=FWD",
+                                                                    "Position=MID", "Position=DEF")), 
+                            control = list (verbose=F))
+inspect(associationRules)
+support <- sort(associationRules, by = "support")[1:6]
+inspect(support)
+confidence <- sort(associationRules, by = "confidence")[1:6]
+inspect(confidence)
+lift <- sort(associationRules, by = "lift")[1:6]
+inspect(lift)
+plot(associationRules, jitter = 0, engine = "plotly")
