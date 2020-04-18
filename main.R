@@ -17,6 +17,14 @@ library(gridExtra)
 library(rworldmap)
 library(ggplot2)
 library(reshape2)
+library(dplyr)
+library(arules)
+library(arulesViz)
+library(tm)
+library(tmap)
+library(wordcloud)
+library(class)
+library(tidyr)
 
 # Read datasets
 f16 <- read.csv("Dataset/players_16.csv")
@@ -67,6 +75,7 @@ addPositionColumn <- function(df){
   df <- mutate(df, Position = x)
   return(df)
 }
+
 
 
 graphTopCountries <- function(df){
@@ -257,6 +266,64 @@ handleNonNumericAttributes <- function(df){
   return(df)
 }
 
+prepareAssociationDataForPosition <- function(df){
+  temp <- df[!(df$Position =="GK"),]
+  temp <- temp[ , colSums(is.na(temp)) == 0]
+  temp <- temp[complete.cases(temp), ]
+  temp <- temp %>%select(Position, pace, shooting, passing, dribbling, defending, physic)
+  temp[,2] <- factor(temp[,2])
+  temp[,3] <- factor(temp[,3])
+  temp[,4] <- factor(temp[,4])
+  temp[,5] <- factor(temp[,5])
+  temp[,6] <- factor(temp[,6])
+  temp[,7] <- factor(temp[,7])
+  transaction <- as(temp,"transactions")
+  return(transaction)
+}
+checkTopRulesForPositions <- function(transaction){
+  inspect(transaction[1:10])
+  itemFrequency(transaction[1:10])
+  itemFrequencyPlot(transaction, topN = 5)
+  associationRules <- apriori(data=transaction, parameter=list (supp=0.001,conf = 0.08), 
+                              appearance = list (default="lhs",rhs= c("Position=GK", "Position=FWD",
+                                                                      "Position=MID", "Position=DEF")), 
+                              control = list (verbose=F))
+  inspect(associationRules)
+  support <- sort(associationRules, by = "support")[1:6]
+  inspect(support)
+  confidence <- sort(associationRules, by = "confidence")[1:6]
+  inspect(confidence)
+  lift <- sort(associationRules, by = "lift")[1:6]
+  inspect(lift)
+  plot(associationRules, jitter = 0, engine = "plotly")
+}
+prepareDataForTagsPositions <- function(df){
+  #df <- unite(df, player_tags, c(player_traits, player_tags), remove=FALSE)
+  df <- df %>% select(player_positions, player_tags)
+  df <- df[!(is.na(df$player_tags) | df$player_tags==""), ]
+  return(df)
+}
+cleanCorpus <- function(df){
+  corp <- Corpus(VectorSource(df$player_tags)) 
+  corp <- tm_map(corp,removePunctuation)
+  corp <- tm_map(corp,stripWhitespace)
+  corp <- tm_map(corp, content_transformer(tolower))
+  corp <- tm_map(corp,removeNumbers)
+  corp <- tm_map(corp,removeWords,stopwords("en"))
+  return(corp)
+}
+generateTDM <- function(corp){
+  s.tdm <- TermDocumentMatrix(corp)
+  s.tdm <- removeSparseTerms(s.tdm, 0.999)
+  return(s.tdm)
+}
+generateTextDf <- function(lis){
+  s.mat <- t(data.matrix(lis[["tdm"]]))
+  s.df <- as.data.frame(s.mat, stringsAsFactors = FALSE)
+  s.df <- cbind(s.df, rep(lis[["name"]], nrow(s.df)))
+  colnames(s.df)[ncol(s.df)] <- "targetPositions"
+  return(s.df)
+}
 ####################################################################
 # Handle String attributes that caused errors:
 # For Example: attacking_crossing, ls and similar attributes.
@@ -265,7 +332,6 @@ f17 <- handleNonNumericAttributes(f17)
 f18 <- handleNonNumericAttributes(f18)
 f19 <- handleNonNumericAttributes(f19)
 f20 <- handleNonNumericAttributes(f20)
-
 ####################################################################
 # Factorise player positions:
 f16 <- addPositionColumn(f16)
@@ -273,7 +339,6 @@ f17 <- addPositionColumn(f17)
 f18 <- addPositionColumn(f18)
 f19 <- addPositionColumn(f19)
 f20 <- addPositionColumn(f20)
-
 ####################################################################
 #Age Statistics:
 
@@ -496,32 +561,31 @@ plotCorrelationHeatMap(f20)
 
 ############################################################################
 # Association Rules For Position:
-library(arules)
-library(arulesViz)
-library(dplyr)
-f20temp <- f20[!(f20$Position =="GK"),]
-f20temp <- f20temp[ , colSums(is.na(f20temp)) == 0]
-f20temp <- f20temp[complete.cases(f20temp), ]
-f20temp <- f20temp %>%select(Position, pace, shooting, passing, dribbling, defending, physic)
-f20temp[,2] <- factor(f20temp[,2])
-f20temp[,3] <- factor(f20temp[,3])
-f20temp[,4] <- factor(f20temp[,3])
-f20temp[,5] <- factor(f20temp[,3])
-f20temp[,6] <- factor(f20temp[,3])
-f20temp[,7] <- factor(f20temp[,3])
-f20_transaction <- as(f20temp,"transactions")
-inspect(f20_transaction[1:10])
-itemFrequency(f20_transaction[1:10])
-itemFrequencyPlot(f20_transaction, topN = 5)
-associationRules <- apriori(data=f20_transaction, parameter=list (supp=0.001,conf = 0.08), 
-                            appearance = list (default="lhs",rhs= c("Position=GK", "Position=FWD",
-                                                                    "Position=MID", "Position=DEF")), 
-                            control = list (verbose=F))
-inspect(associationRules)
-support <- sort(associationRules, by = "support")[1:6]
-inspect(support)
-confidence <- sort(associationRules, by = "confidence")[1:6]
-inspect(confidence)
-lift <- sort(associationRules, by = "lift")[1:6]
-inspect(lift)
-plot(associationRules, jitter = 0, engine = "plotly")
+f16_transaction <- prepareAssociationDataForPosition(f16)
+checkTopRulesForPositions(f16_transaction)
+f17_transaction <- prepareAssociationDataForPosition(f17)
+checkTopRulesForPositions(f17_transaction)
+f18_transaction <- prepareAssociationDataForPosition(f18)
+checkTopRulesForPositions(f18_transaction)
+f19_transaction <- prepareAssociationDataForPosition(f19)
+checkTopRulesForPositions(f19_transaction)
+f20_transaction <- prepareAssociationDataForPosition(f20)
+checkTopRulesForPositions(f20_transaction)
+############################################################################
+# Text Minning Positionand Tags:
+f20_mod <- prepareDataForTagsPositions(f20)
+corp.f20 <- cleanCorpus(f20_mod)
+s.tdm <- generateTDM(corp.f20)
+findFreqTerms(s.tdm, 65)
+normalmat <- as.matrix(s.tdm)
+normalmat <- t(normalmat)
+pfrequency <- colSums(normalmat)
+freq <- data.frame(sort(pfrequency, decreasing=TRUE))
+head(freq, n=5)
+pwords <- names(pfrequency[1:5]) 
+wordcloud(pwords[1:5], pfrequency[1:5], random.color=TRUE, 
+          colors=c("red","green","blue","orange","yellow","pink"))
+lis <- list(name=f20_mod$player_positions, tdm=s.tdm)
+s.df <- generateTextDf(lis)
+s.df$row_sum <- rowSums(s.df[,1:ncol(s.df)-1])
+head(s.df[order(s.df$row_sum, decreasing=TRUE),c(ncol(s.df)-1, ncol(s.df))], n=5)
