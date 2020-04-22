@@ -8,6 +8,8 @@ getwd()
 #install.packages(c("dplyr","gridExtra","rworldmap",
 #                   "randomForest","reshape2","stringi"))
 library(randomForest)
+library(grid)
+library(plyr)
 library(caret)
 library(e1071)
 library(ROCR)
@@ -25,6 +27,7 @@ library(tmap)
 library(wordcloud)
 library(class)
 library(tidyr)
+library(UpSetR)
 
 # Read datasets
 f16 <- read.csv("Dataset/players_16.csv")
@@ -324,6 +327,21 @@ generateTextDf <- function(lis){
   colnames(s.df)[ncol(s.df)] <- "targetPositions"
   return(s.df)
 }
+generateDistributionGraph <- function(df, val2){
+  f20_att <- removeGKColumns(df)
+  f20_att <- f20_att[1:38,]
+  f20_att$names <- colnames(f20_att[, 1:38])
+  ggbarplot(f20_att, x = "names", y = val2,
+            fill = "Position",               # change fill color by cyl
+            color = "white",            # Set bar border colors to white
+            palette = "jco",            # jco journal color palett. see ?ggpar
+            sort.val = "asc",          # Sort the value in dscending order
+            sort.by.groups = TRUE,     # Don't sort inside each group
+            x.text.angle = 90,           # Rotate vertically x axis texts
+            ggtheme = theme_pubclean()
+  )+
+    font("x.text", size = 8, vjust = 0.5)
+}
 ####################################################################
 # Handle String attributes that caused errors:
 # For Example: attacking_crossing, ls and similar attributes.
@@ -589,3 +607,8 @@ lis <- list(name=f20_mod$player_positions, tdm=s.tdm)
 s.df <- generateTextDf(lis)
 s.df$row_sum <- rowSums(s.df[,1:ncol(s.df)-1])
 head(s.df[order(s.df$row_sum, decreasing=TRUE),c(ncol(s.df)-1, ncol(s.df))], n=5)
+############################################################################
+# Plot Attributes:
+# F20
+library(ggpubr)
+generateDistributionGraph(f20, "pace")
