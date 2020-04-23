@@ -342,6 +342,24 @@ generateDistributionGraph <- function(df, val2){
   )+
     font("x.text", size = 8, vjust = 0.5)
 }
+startTextMiningToGetTopPositions <- function(df){
+  f20_mod <- prepareDataForTagsPositions(df)
+  corp.f20 <- cleanCorpus(f20_mod)
+  s.tdm <- generateTDM(corp.f20)
+  findFreqTerms(s.tdm, 65)
+  normalmat <- as.matrix(s.tdm)
+  normalmat <- t(normalmat)
+  pfrequency <- colSums(normalmat)
+  freq <- data.frame(sort(pfrequency, decreasing=TRUE))
+  head(freq, n=5)
+  pwords <- names(pfrequency[1:5]) 
+  wordcloud(pwords[1:5], pfrequency[1:5], random.color=TRUE, 
+            colors=c("red","green","blue","orange","yellow","pink"))
+  lis <- list(name=f20_mod$player_positions, tdm=s.tdm)
+  s.df <- generateTextDf(lis)
+  s.df$row_sum <- rowSums(s.df[,1:ncol(s.df)-1])
+  head(s.df[order(s.df$row_sum, decreasing=TRUE),c(ncol(s.df)-1, ncol(s.df))], n=5)
+}
 ####################################################################
 # Handle String attributes that caused errors:
 # For Example: attacking_crossing, ls and similar attributes.
@@ -591,24 +609,56 @@ f20_transaction <- prepareAssociationDataForPosition(f20)
 checkTopRulesForPositions(f20_transaction)
 ############################################################################
 # Text Minning Positionand Tags:
-f20_mod <- prepareDataForTagsPositions(f20)
-corp.f20 <- cleanCorpus(f20_mod)
-s.tdm <- generateTDM(corp.f20)
-findFreqTerms(s.tdm, 65)
-normalmat <- as.matrix(s.tdm)
-normalmat <- t(normalmat)
-pfrequency <- colSums(normalmat)
-freq <- data.frame(sort(pfrequency, decreasing=TRUE))
-head(freq, n=5)
-pwords <- names(pfrequency[1:5]) 
-wordcloud(pwords[1:5], pfrequency[1:5], random.color=TRUE, 
-          colors=c("red","green","blue","orange","yellow","pink"))
-lis <- list(name=f20_mod$player_positions, tdm=s.tdm)
-s.df <- generateTextDf(lis)
-s.df$row_sum <- rowSums(s.df[,1:ncol(s.df)-1])
-head(s.df[order(s.df$row_sum, decreasing=TRUE),c(ncol(s.df)-1, ncol(s.df))], n=5)
-############################################################################
-# Plot Attributes:
 # F20
+startTextMiningToGetTopPositions(f20)
+# F19
+startTextMiningToGetTopPositions(f19)
+# F18
+startTextMiningToGetTopPositions(f18)
+# F17
+startTextMiningToGetTopPositions(f17)
+# F16
+startTextMiningToGetTopPositions(f16)
+############################################################################
+# Plot Attributes
 library(ggpubr)
+# F20
 generateDistributionGraph(f20, "pace")
+generateDistributionGraph(f20, "Position")
+generateDistributionGraph(f20, "shooting")
+generateDistributionGraph(f20, "defending")
+generateDistributionGraph(f20, "physic")
+generateDistributionGraph(f20, "passing")
+generateDistributionGraph(f20, "dribbling")
+# F19
+generateDistributionGraph(f19, "pace")
+generateDistributionGraph(f19, "Position")
+generateDistributionGraph(f19, "shooting")
+generateDistributionGraph(f19, "defending")
+generateDistributionGraph(f19, "physic")
+generateDistributionGraph(f19, "passing")
+generateDistributionGraph(f19, "dribbling")
+# F18
+generateDistributionGraph(f18, "pace")
+generateDistributionGraph(f18, "Position")
+generateDistributionGraph(f18, "shooting")
+generateDistributionGraph(f18, "defending")
+generateDistributionGraph(f18, "physic")
+generateDistributionGraph(f18, "passing")
+generateDistributionGraph(f18, "dribbling")
+# F17
+generateDistributionGraph(f17, "pace")
+generateDistributionGraph(f17, "Position")
+generateDistributionGraph(f17, "shooting")
+generateDistributionGraph(f17, "defending")
+generateDistributionGraph(f17, "physic")
+generateDistributionGraph(f17, "passing")
+generateDistributionGraph(f17, "dribbling")
+# F16
+generateDistributionGraph(f16, "pace")
+generateDistributionGraph(f16, "Position")
+generateDistributionGraph(f16, "shooting")
+generateDistributionGraph(f16, "defending")
+generateDistributionGraph(f16, "physic")
+generateDistributionGraph(f16, "passing")
+generateDistributionGraph(f16, "dribbling")
