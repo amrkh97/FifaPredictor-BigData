@@ -359,6 +359,36 @@ startTextMiningToGetTopPositions <- function(df){
   s.df$row_sum <- rowSums(s.df[,1:ncol(s.df)-1])
   head(s.df[order(s.df$row_sum, decreasing=TRUE),c(ncol(s.df)-1, ncol(s.df))], n=5)
 }
+prepareCountriesData <- function(df){
+  df <- df %>% dplyr::select(player_positions, nationality)
+  df <- df[!(is.na(df$nationality) | df$nationality==""), ]
+  return(df)
+}
+
+getCountByNationality <- function(df){
+  tmp <- df %>%
+        dplyr::group_by(nationality) %>% # or: group_by_at(vars(-score))
+        dplyr::summarise(RW = sum(player_positions == "RW"), GK = sum(player_positions == "GK"),
+              LWB = sum(player_positions == "LWB"), LB = sum(player_positions == "LB"),
+              CB = sum(player_positions == "CB"), RB = sum(player_positions == "RB"),
+              RWB = sum(player_positions == "RWB"), LM = sum(player_positions == "LM"),
+              CDM = sum(player_positions == "CDM"), CM = sum(player_positions == "CM"),
+              CAM = sum(player_positions == "CAM"), RM = sum(player_positions == "RM"),
+              CF = sum(player_positions == "CF"), ST = sum(player_positions == "ST"),
+              LW = sum(player_positions == "LW"), RW = sum(player_positions == "RW"))
+  return(tmp)
+}
+drawWorldMapWithPositions <- function(df){
+  world <- ne_countries(scale = "medium", returnclass = "sf")
+  world$color <- ifelse(world$name %in% df$nationality, df$largest, "Didnt particpate in this fifa")
+  ggplot(data = world) +
+    geom_sf(aes(fill = as.factor(color))) 
+}
+getWorldPlot <- function(df){
+  temp <- getCountByNationality(df)
+  temp$largest <- colnames(temp[,2:ncol(temp)])[apply(temp[,2:ncol(temp)],1,which.max)]
+  drawWorldMapWithPositions(temp)
+}
 ####################################################################
 # Handle String attributes that caused errors:
 # For Example: attacking_crossing, ls and similar attributes.
@@ -661,3 +691,26 @@ generateDistributionGraph(f16, "defending")
 generateDistributionGraph(f16, "physic")
 generateDistributionGraph(f16, "passing")
 generateDistributionGraph(f16, "dribbling")
+#------------------------------------------------------------
+# Dominate positions in each country
+library(ggplot2)
+theme_set(theme_bw())
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+# F20
+f20_nation <- prepareCountriesData(f20)
+getWorldPlot(f20_nation)
+# F19
+f19_nation <- prepareCountriesData(f19)
+getWorldPlot(f19_nation)
+# F18
+f18_nation <- prepareCountriesData(f18)
+getWorldPlot(f18_nation)
+# F17
+f17_nation <- prepareCountriesData(f17)
+getWorldPlot(f17_nation)
+# F16
+f16_nation <- prepareCountriesData(f16)
+getWorldPlot(f16_nation)
