@@ -199,7 +199,7 @@ plotCorrelationHeatMap <- function(df){
   dd <- as.dist((1-cormat)/2)
   hc <- hclust(dd)
   cormat <-cormat[hc$order, hc$order]
-  cormat[upper.tri(cormat)] <- NA
+  #cormat[upper.tri(cormat)] <- NA
   
   melted_cormat <- melt(cormat, na.rm = TRUE)
   
@@ -230,6 +230,7 @@ handleNonNumericAttributes <- function(df){
 
 # Clear console
 cat("\014")
+
 
 ####################################################################
 # Handle String attributes that caused errors:
