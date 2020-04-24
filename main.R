@@ -27,7 +27,6 @@ library(tmap)
 library(wordcloud)
 library(class)
 library(tidyr)
-library(UpSetR)
 
 # Read datasets
 f16 <- read.csv("Dataset/players_16.csv")
@@ -284,20 +283,20 @@ prepareAssociationDataForPosition <- function(df){
   return(transaction)
 }
 checkTopRulesForPositions <- function(transaction){
-  inspect(transaction[1:10])
+  arules::inspect(transaction[1:10])
   itemFrequency(transaction[1:10])
   itemFrequencyPlot(transaction, topN = 5)
   associationRules <- apriori(data=transaction, parameter=list (supp=0.001,conf = 0.08), 
                               appearance = list (default="lhs",rhs= c("Position=GK", "Position=FWD",
                                                                       "Position=MID", "Position=DEF")), 
                               control = list (verbose=F))
-  inspect(associationRules)
+  arules::inspect(associationRules)
   support <- sort(associationRules, by = "support")[1:6]
-  inspect(support)
+  arules::inspect(support)
   confidence <- sort(associationRules, by = "confidence")[1:6]
-  inspect(confidence)
+  arules::inspect(confidence)
   lift <- sort(associationRules, by = "lift")[1:6]
-  inspect(lift)
+  arules::inspect(lift)
   plot(associationRules, jitter = 0, engine = "plotly")
 }
 prepareDataForTagsPositions <- function(df){
