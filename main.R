@@ -6,6 +6,8 @@ getwd()
 #install.packages(c("dplyr","gridExtra","rworldmap",
 #                   "randomForest","reshape2","stringi"))
 library(randomForest)
+library(grid)
+library(plyr)
 library(caret)
 library(e1071)
 library(ROCR)
@@ -19,6 +21,8 @@ library(arules)
 library(arulesViz)
 library(tm)
 library(wordcloud)
+library(class)
+library(tidyr)
 
 # Read datasets
 f16 <- read.csv("Dataset/players_16.csv")
@@ -69,6 +73,7 @@ addPositionColumn <- function(df){
   df <- mutate(df, Position = x)
   return(df)
 }
+
 
 
 graphTopCountries <- function(df){
@@ -217,6 +222,37 @@ plotCorrelationHeatMap <- function(df){
   
 }
 
+prepareFootData <- function(df){
+  removedColumns <- c("nationality","value_eur","wage_eur","player_positions",
+                      "international_reputation","work_rate",
+                      "body_type","release_clause_eur","player_tags",
+                      "team_position","team_jersey_number","joined","contract_valid_until",
+                      "player_traits","value_brackets","loaned_from",
+                      "age","long_name","club","overall","potential",
+                      "ls","st","rs","rw","lw","lf","cf","rf","lam",
+                      "cam","ram","lm","rm","cm","lcm","rcm","cdm",
+                      "ldm","rdm","lwb","rwb","lb","lcb","cb","rcb","rb",
+                      "wage_brackets","preferred_foot","gk_diving","gk_handling",
+                      "gk_kicking","gk_reflexes","gk_speed","gk_positioning",
+                      "goalkeeping_diving","goalkeeping_handling","goalkeeping_kicking",
+                      "goalkeeping_positioning","goalkeeping_reflexes", "Position")
+  
+  temp <- df[,!(names(df) %in% removedColumns)]
+  temp
+  temp <- temp[complete.cases(temp), ]
+  return(temp)
+}
+
+addFootColumn <- function(df){
+  df$player_positions <- gsub(" ", "", substr(df$player_positions, 1, 2))
+  df$player_positions <- gsub(",", "", substr(df$player_positions, 1, 2))
+  x <- as.factor(df$preferred_foot)
+  levels(x) <- list(LEFT  = c("Left"), 
+                    RIGHT = c("Right"))
+  df <- mutate(df, foot = x)
+  return(df)
+}
+
 helperFun <- function(column){
   column <- as.numeric(unlist(stri_split_regex(column, "\\+|-", n_max = 1))[1])
   
@@ -228,10 +264,127 @@ handleNonNumericAttributes <- function(df){
   return(df)
 }
 
-# Clear console
-cat("\014")
+prepareAssociationDataForPosition <- function(df){
+  temp <- df[!(df$Position =="GK"),]
+  temp <- temp[ , colSums(is.na(temp)) == 0]
+  temp <- temp[complete.cases(temp), ]
+  temp <- temp %>%select(Position, pace, shooting, passing, dribbling, defending, physic)
+  temp[,2] <- factor(temp[,2])
+  temp[,3] <- factor(temp[,3])
+  temp[,4] <- factor(temp[,4])
+  temp[,5] <- factor(temp[,5])
+  temp[,6] <- factor(temp[,6])
+  temp[,7] <- factor(temp[,7])
+  transaction <- as(temp,"transactions")
+  return(transaction)
+}
+checkTopRulesForPositions <- function(transaction){
+  arules::inspect(transaction[1:10])
+  itemFrequency(transaction[1:10])
+  itemFrequencyPlot(transaction, topN = 5)
+  associationRules <- apriori(data=transaction, parameter=list (supp=0.001,conf = 0.08), 
+                              appearance = list (default="lhs",rhs= c("Position=GK", "Position=FWD",
+                                                                      "Position=MID", "Position=DEF")), 
+                              control = list (verbose=F))
+  arules::inspect(associationRules)
+  support <- sort(associationRules, by = "support")[1:6]
+  arules::inspect(support)
+  confidence <- sort(associationRules, by = "confidence")[1:6]
+  arules::inspect(confidence)
+  lift <- sort(associationRules, by = "lift")[1:6]
+  arules::inspect(lift)
+  plot(associationRules, jitter = 0, engine = "plotly")
+}
+prepareDataForTagsPositions <- function(df){
+  #df <- unite(df, player_tags, c(player_traits, player_tags), remove=FALSE)
+  df <- df %>% select(player_positions, player_tags)
+  df <- df[!(is.na(df$player_tags) | df$player_tags==""), ]
+  return(df)
+}
+cleanCorpus <- function(df){
+  corp <- Corpus(VectorSource(df$player_tags)) 
+  corp <- tm_map(corp,removePunctuation)
+  corp <- tm_map(corp,stripWhitespace)
+  corp <- tm_map(corp, content_transformer(tolower))
+  corp <- tm_map(corp,removeNumbers)
+  corp <- tm_map(corp,removeWords,stopwords("en"))
+  return(corp)
+}
+generateTDM <- function(corp){
+  s.tdm <- TermDocumentMatrix(corp)
+  s.tdm <- removeSparseTerms(s.tdm, 0.999)
+  return(s.tdm)
+}
+generateTextDf <- function(lis){
+  s.mat <- t(data.matrix(lis[["tdm"]]))
+  s.df <- as.data.frame(s.mat, stringsAsFactors = FALSE)
+  s.df <- cbind(s.df, rep(lis[["name"]], nrow(s.df)))
+  colnames(s.df)[ncol(s.df)] <- "targetPositions"
+  return(s.df)
+}
+generateDistributionGraph <- function(df, val2){
+  f20_att <- removeGKColumns(df)
+  f20_att <- f20_att[1:38,]
+  f20_att$names <- colnames(f20_att[, 1:38])
+  ggbarplot(f20_att, x = "names", y = val2,
+            fill = "Position",               # change fill color by cyl
+            color = "white",            # Set bar border colors to white
+            palette = "jco",            # jco journal color palett. see ?ggpar
+            sort.val = "asc",          # Sort the value in dscending order
+            sort.by.groups = TRUE,     # Don't sort inside each group
+            x.text.angle = 90,           # Rotate vertically x axis texts
+            ggtheme = theme_pubclean()
+  )+
+    font("x.text", size = 8, vjust = 0.5)
+}
+startTextMiningToGetTopPositions <- function(df){
+  f20_mod <- prepareDataForTagsPositions(df)
+  corp.f20 <- cleanCorpus(f20_mod)
+  s.tdm <- generateTDM(corp.f20)
+  findFreqTerms(s.tdm, 65)
+  normalmat <- as.matrix(s.tdm)
+  normalmat <- t(normalmat)
+  pfrequency <- colSums(normalmat)
+  freq <- data.frame(sort(pfrequency, decreasing=TRUE))
+  head(freq, n=5)
+  pwords <- names(pfrequency[1:5]) 
+  wordcloud(pwords[1:5], pfrequency[1:5], random.color=TRUE, 
+            colors=c("red","green","blue","orange","yellow","pink"))
+  lis <- list(name=f20_mod$player_positions, tdm=s.tdm)
+  s.df <- generateTextDf(lis)
+  s.df$row_sum <- rowSums(s.df[,1:ncol(s.df)-1])
+  head(s.df[order(s.df$row_sum, decreasing=TRUE),c(ncol(s.df)-1, ncol(s.df))], n=5)
+}
+prepareCountriesData <- function(df){
+  df <- df %>% dplyr::select(player_positions, nationality)
+  df <- df[!(is.na(df$nationality) | df$nationality==""), ]
+  return(df)
+}
 
-
+getCountByNationality <- function(df){
+  tmp <- df %>%
+        dplyr::group_by(nationality) %>% # or: group_by_at(vars(-score))
+        dplyr::summarise(RW = sum(player_positions == "RW"), GK = sum(player_positions == "GK"),
+              LWB = sum(player_positions == "LWB"), LB = sum(player_positions == "LB"),
+              CB = sum(player_positions == "CB"), RB = sum(player_positions == "RB"),
+              RWB = sum(player_positions == "RWB"), LM = sum(player_positions == "LM"),
+              CDM = sum(player_positions == "CDM"), CM = sum(player_positions == "CM"),
+              CAM = sum(player_positions == "CAM"), RM = sum(player_positions == "RM"),
+              CF = sum(player_positions == "CF"), ST = sum(player_positions == "ST"),
+              LW = sum(player_positions == "LW"), RW = sum(player_positions == "RW"))
+  return(tmp)
+}
+drawWorldMapWithPositions <- function(df){
+  world <- ne_countries(scale = "medium", returnclass = "sf")
+  world$color <- ifelse(world$name %in% df$nationality, df$largest, "Didnt particpate in this fifa")
+  ggplot(data = world) +
+    geom_sf(aes(fill = as.factor(color))) 
+}
+getWorldPlot <- function(df){
+  temp <- getCountByNationality(df)
+  temp$largest <- colnames(temp[,2:ncol(temp)])[apply(temp[,2:ncol(temp)],1,which.max)]
+  drawWorldMapWithPositions(temp)
+}
 ####################################################################
 # Handle String attributes that caused errors:
 # For Example: attacking_crossing, ls and similar attributes.
@@ -240,7 +393,6 @@ f17 <- handleNonNumericAttributes(f17)
 f18 <- handleNonNumericAttributes(f18)
 f19 <- handleNonNumericAttributes(f19)
 f20 <- handleNonNumericAttributes(f20)
-
 ####################################################################
 # Factorise player positions:
 f16 <- addPositionColumn(f16)
@@ -248,7 +400,6 @@ f17 <- addPositionColumn(f17)
 f18 <- addPositionColumn(f18)
 f19 <- addPositionColumn(f19)
 f20 <- addPositionColumn(f20)
-
 ####################################################################
 #Age Statistics:
 
@@ -396,6 +547,12 @@ as.factor(testSet$factor)
 
 mylogit <- glm(factor~.,data =tempTest, family=binomial(link="logit"),
                na.action=na.omit)
+
+step(mylogit, direction = "backward")
+
+mylogit <- glm(factor ~ weight_kg + weak_foot + skill_moves + 
+                 pace + shooting + passing + dribbling + defending + physic, 
+               family = binomial(link = "logit"), data = tempTest, na.action = na.omit)
 
 summary(mylogit)
 pred = predict(mylogit,newdata = testSet, type="response")
@@ -609,3 +766,94 @@ plot(playerPositionsAssociationRules17, jitter = 0, engine = "plotly")
 plot(playerPositionsAssociationRules18, jitter = 0, engine = "plotly")
 plot(playerPositionsAssociationRules19, jitter = 0, engine = "plotly")
 plot(playerPositionsAssociationRules20, jitter = 0, engine = "plotly")
+
+############################################################################
+# Association Rules For Position:
+f16_transaction <- prepareAssociationDataForPosition(f16)
+checkTopRulesForPositions(f16_transaction)
+f17_transaction <- prepareAssociationDataForPosition(f17)
+checkTopRulesForPositions(f17_transaction)
+f18_transaction <- prepareAssociationDataForPosition(f18)
+checkTopRulesForPositions(f18_transaction)
+f19_transaction <- prepareAssociationDataForPosition(f19)
+checkTopRulesForPositions(f19_transaction)
+f20_transaction <- prepareAssociationDataForPosition(f20)
+checkTopRulesForPositions(f20_transaction)
+############################################################################
+# Text Minning Positionand Tags:
+# F20
+startTextMiningToGetTopPositions(f20)
+# F19
+startTextMiningToGetTopPositions(f19)
+# F18
+startTextMiningToGetTopPositions(f18)
+# F17
+startTextMiningToGetTopPositions(f17)
+# F16
+startTextMiningToGetTopPositions(f16)
+############################################################################
+# Plot Attributes
+library(ggpubr)
+# F20
+generateDistributionGraph(f20, "pace")
+generateDistributionGraph(f20, "Position")
+generateDistributionGraph(f20, "shooting")
+generateDistributionGraph(f20, "defending")
+generateDistributionGraph(f20, "physic")
+generateDistributionGraph(f20, "passing")
+generateDistributionGraph(f20, "dribbling")
+# F19
+generateDistributionGraph(f19, "pace")
+generateDistributionGraph(f19, "Position")
+generateDistributionGraph(f19, "shooting")
+generateDistributionGraph(f19, "defending")
+generateDistributionGraph(f19, "physic")
+generateDistributionGraph(f19, "passing")
+generateDistributionGraph(f19, "dribbling")
+# F18
+generateDistributionGraph(f18, "pace")
+generateDistributionGraph(f18, "Position")
+generateDistributionGraph(f18, "shooting")
+generateDistributionGraph(f18, "defending")
+generateDistributionGraph(f18, "physic")
+generateDistributionGraph(f18, "passing")
+generateDistributionGraph(f18, "dribbling")
+# F17
+generateDistributionGraph(f17, "pace")
+generateDistributionGraph(f17, "Position")
+generateDistributionGraph(f17, "shooting")
+generateDistributionGraph(f17, "defending")
+generateDistributionGraph(f17, "physic")
+generateDistributionGraph(f17, "passing")
+generateDistributionGraph(f17, "dribbling")
+# F16
+generateDistributionGraph(f16, "pace")
+generateDistributionGraph(f16, "Position")
+generateDistributionGraph(f16, "shooting")
+generateDistributionGraph(f16, "defending")
+generateDistributionGraph(f16, "physic")
+generateDistributionGraph(f16, "passing")
+generateDistributionGraph(f16, "dribbling")
+#------------------------------------------------------------
+# Dominate positions in each country
+library(ggplot2)
+theme_set(theme_bw())
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+# F20
+f20_nation <- prepareCountriesData(f20)
+getWorldPlot(f20_nation)
+# F19
+f19_nation <- prepareCountriesData(f19)
+getWorldPlot(f19_nation)
+# F18
+f18_nation <- prepareCountriesData(f18)
+getWorldPlot(f18_nation)
+# F17
+f17_nation <- prepareCountriesData(f17)
+getWorldPlot(f17_nation)
+# F16
+f16_nation <- prepareCountriesData(f16)
+getWorldPlot(f16_nation)
