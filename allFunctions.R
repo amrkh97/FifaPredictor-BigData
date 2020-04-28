@@ -1,8 +1,9 @@
 #install.packages(c("dplyr","gridExtra","rworldmap",
 #                   "randomForest","reshape2","stringi",
 #                   "class","tidyr","sf","rnaturalearth",
-#                   "rgeos","rnaturalearthdata"))
-
+#                   "rgeos","rnaturalearthdata","jpeg,
+#                   "ggpubr", "magritter"))
+#
 library(randomForest)
 library(grid)
 library(plyr)
@@ -22,6 +23,9 @@ library(sf)
 library(rnaturalearth)
 library(rnaturalearthdata)
 library(rgeos)
+library(jpeg)
+library(magrittr)
+library(ggpubr)
 ########################################################################
 # Function Definitions:
 
@@ -245,3 +249,143 @@ getWorldPlot <- function(df){
   temp$largest <- colnames(temp[,2:ncol(temp)])[apply(temp[,2:ncol(temp)],1,which.max)]
   drawWorldMapWithPositions(temp)
 }
+
+
+
+#########################################
+
+best_team <- function(df, input){
+  
+  team <- tibble()
+  team_copy <- df %>% arrange(-overall)
+  
+  tac442 <- c("GK","RB", "LCB", "RCB", "LB", "RM", "CM", "CM", "LM", "ST", "ST")
+  tac352 <- c("GK","CB", "LCB", "RCB", "LM", "CDM", "CAM", "CDM", "RM", "ST", "ST")
+  tac433 <- c("GK", "RB", "LCB","RCB", "LB", "CAM", "CDM", "CAM", "RW", "ST", "LW")
+  
+  tactic <- if(input == "4-4-2"){
+    tac442
+  }else if(input == "3-5-2"){
+    tac352
+  }else{
+    tac433
+  }
+  
+  for (i in tactic) {
+    
+    team %<>%  bind_rows(team_copy %>% filter(team_position %in% i) %>% head(1))
+    team_copy %<>% filter(!short_name %in% (team %>% pull(short_name)))
+    
+  }
+  
+  return(team)
+  
+}
+
+
+plotBest442 <- function(df_name){
+  
+  s <- sprintf("Dataset/players_%s.csv", df_name)
+  df <- read.csv(s)
+  tempDF <- df  %>% select(short_name, team_position, overall)
+  
+  
+  formation442 <- data.frame(Position = as.factor(c("GK","RB", "CB", "CB", "LB", "RM", "CM", "CM", "LM", "ST", "ST")),
+                             X = c(5, 17, 17, 17, 17, 45, 35, 35, 45, 60, 60), 
+                             Y = c(50 ,16 ,41, 58, 83, 16, 58, 41, 83, 33, 66))
+  
+  tac442 <- best_team(tempDF, input = "4-4-2")
+  F442 <- cbind(tac442, formation442 %>% select(-Position))
+  options(repr.plot.width = 12, repr.plot.height = 8)
+  
+  img <- readJPEG("football_pitch.jpg")
+  
+  ggplot(F442, aes(X, Y, label = short_name))+
+    background_image(img)+
+    geom_text(size = 7.5, angle = 5, color = "white", nudge_y = 5)+
+    theme_void()+
+    xlim(0,70)+
+    geom_point(shape = 21, colour = "black", fill = "red", size = 4, stroke = 3)
+  
+}
+
+plotBest433 <- function(df_name){
+  
+  s <- sprintf("Dataset/players_%s.csv", df_name)
+  df <- read.csv(s)
+  tempDF <- df  %>% select(short_name, team_position, overall)
+  
+  formation433 <- data.frame(Position = as.factor(c("GK", "LB", "CB","CB", "RB", "RM", "CM", "LM", "LW", "ST", "RW")), 
+                             X = c(5, 17, 17, 17, 17, 40, 35, 40, 55, 60, 55), 
+                             Y = c(50 ,16 ,41, 58, 83, 25, 50, 75, 25, 50, 75))
+  
+  tac433 <- best_team(tempDF, input = "4-3-3")
+  
+  F433 <- cbind(tac433, formation433 %>% select(-Position))
+  
+  options(repr.plot.width = 12, repr.plot.height = 8)
+  
+  img <- readJPEG("football_pitch.jpg")
+  
+  ggplot(F433, aes(X, Y, label = short_name))+
+    background_image(img)+
+    geom_text(size = 7.5, angle = 8, color = "white", nudge_y = 4)+
+    theme_void()+
+    xlim(0,70)+
+    geom_point(shape = 21, colour = "black", fill = "red", size = 4, stroke = 3)
+
+}
+
+plotBest352 <- function(df_name){
+  
+  s <- sprintf("Dataset/players_%s.csv", df_name)
+  df <- read.csv(s)
+  
+  tempDF <- df  %>% select(short_name, team_position, overall)
+  tempDF
+  
+  formation352 <- data.frame(Position = as.factor(c("GK","CB", "CB", "CB", "RM", "CDM","CAM", "CDM", "LM", "ST", "ST")), 
+                             X = c(5, 17, 17, 17, 45, 35, 45, 35, 45, 60, 60), 
+                             Y = c(50 ,25 ,50, 75, 16, 35, 50, 65, 83, 33, 66))
+  
+  
+  tac352 <- best_team(tempDF, input = "3-5-2")
+  
+  F352 <- cbind(tac352, formation352 %>% select(-Position))
+  
+  options(repr.plot.width = 12, repr.plot.height = 8)
+  
+  img <- readJPEG("football_pitch.jpg")
+  
+  ggplot(F352, aes(X, Y, label = short_name))+
+    background_image(img)+
+    geom_text(size = 7.5, angle = 5, color = "white", nudge_y = 5)+
+    theme_void()+
+    xlim(0,70)+
+    geom_point(shape = 21, colour = "black", fill = "red", size = 4, stroke = 3)
+}
+
+
+
+
+getBestTeamForFormation <- function(df_name,input){
+  
+  s <- sprintf("Dataset/players_%s.csv", df_name)
+  df <- read.csv(s)
+  tempDF <- df  %>% select(short_name, team_position, overall)
+  team <- best_team(tempDF, input)
+  return(data.frame(team))
+}
+
+
+getBestTeamByOverall <- function(firstTeam, secondTeam, thirdTeam){
+  
+  firstTeam <- sum(firstTeam$overall)
+  secondTeam <- sum(secondTeam$overall)
+  thirdTeam <- sum(thirdTeam$overall)
+  allTeams <- c(firstTeam, secondTeam, thirdTeam)
+  
+  return(which.max(allTeams))
+  
+}
+

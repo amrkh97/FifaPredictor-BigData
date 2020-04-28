@@ -297,3 +297,44 @@ f16_nation <- prepareCountriesData(f16)
 getWorldPlot(f16_nation)
 
 ############################################################################
+# Best Team In Each Year:
+
+# FIFA 20:
+plotBest442("20")
+plotBest352("20")
+plotBest433("20")
+
+F20_442 <- getBestTeamForFormation("20", "4-4-2")
+F20_352 <- getBestTeamForFormation("20", "3-5-2")
+F20_433 <- getBestTeamForFormation("20", "4-3-3")
+
+bestTeams20 <- list(F20_442, F20_352, F20_433)
+bestTeams20[getBestTeamByOverall(F20_442, F20_352, F20_433)]
+
+# FIFA 19:
+plotBest442("19")
+plotBest352("19")
+plotBest433("19")
+
+F19_442 <- getBestTeamForFormation("19", "4-4-2")
+F19_352 <- getBestTeamForFormation("19", "3-5-2")
+F19_433 <- getBestTeamForFormation("19", "4-3-3")
+
+bestTeams19 <- list(F19_442, F19_352, F19_433)
+bestTeams19[getBestTeamByOverall(F19_442, F19_352, F19_433)]
+
+# FIFA 18:
+plotBest442("18")
+plotBest352("18")
+plotBest433("18")
+
+F18_442 <- getBestTeamForFormation("18", "4-4-2")
+F18_352 <- getBestTeamForFormation("18", "3-5-2")
+F18_433 <- getBestTeamForFormation("18", "4-3-3")
+
+bestTeams18 <- list(F18_442, F18_352, F18_433)
+bestTeams18[getBestTeamByOverall(F18_442, F18_352, F18_433)]
+
+# It can be observed that teams with messi and cristiano are always the best formation:
+# F20 Team is better than that of other years:
+getBestTeamByOverall(F20_433, F19_433, F18_433)
