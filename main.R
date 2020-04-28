@@ -6,20 +6,21 @@ rm(list=ls())
 getwd()
 
 #install.packages(c("dplyr","gridExtra","rworldmap",
-#                   "randomForest","reshape2","stringi","ggpubr"))
+#                   "randomForest","reshape2","stringi","ggpubr", "nnet"))
 
 
-library(randomForest)
-library(caret)
-library(e1071)
-library(ROCR)
-library(stringi)
-library(dplyr)
-library(gridExtra)
-library(rworldmap)
-library(ggplot2)
-library(reshape2)
-library(ggpubr)
+require(randomForest)
+require(caret)
+require(e1071)
+require(ROCR)
+require(stringi)
+require(dplyr)
+require(gridExtra)
+require(rworldmap)
+require(ggplot2)
+require(reshape2)
+require(ggpubr)
+require(nnet)
 theme_set(theme_pubr())
 
 
@@ -769,8 +770,9 @@ LinearRegressionPreProcessing <- function (df)
     return(temp)
   }
 pre_processed_f19 <- LinearRegressionPreProcessing(f19_without_GK)
-training <- pre_processed_f19[1:10000,]
-test <- pre_processed_f19[10001:15784,]
+pre_processed_f20 <- LinearRegressionPreProcessing(f20_without_GK)
+training <- pre_processed_f19
+test <- pre_processed_f20
 
 
 wage_model <- lm (wage_eur ~ age   + 
@@ -816,3 +818,43 @@ MSE <- mean(sm$residuals^2)
 MSE_after_zero_addition <- mean(wage_df$difference^2)
 MSE
 MSE_after_zero_addition
+
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Logistic regression Model to predict wage -------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+LogisticRegressionPreProcessing <- function (df)
+  {
+    # temp <- select (df, potential,value_eur,
+    #                     dribbling,defending,power_stamina,
+    #                     power_long_shots,mentality_interceptions,mentality_positioning,
+    #                     mentality_vision,mentality_penalties,defending_marking,
+    #                     defending_sliding_tackle,wage_brackets)
+    temp <- select (df, height_cm, weight_kg, overall, potential,value_eur, skill_moves, pace,shooting, passing, 
+                        dribbling,defending, physic,  attacking_crossing, attacking_finishing, attacking_heading_accuracy, attacking_short_passing, attacking_volleys, skill_dribbling,
+       attacking_short_passing, attacking_volleys, skill_dribbling, skill_curve, skill_fk_accuracy, skill_long_passing,
+       skill_ball_control, movement_acceleration, movement_sprint_speed, movement_agility, movement_reactions, movement_balance, power_jumping,
+       power_stamina, power_strength, power_long_shots, mentality_aggression, mentality_interceptions, mentality_positioning,
+       mentality_vision, mentality_penalties, defending_marking, defending_standing_tackle, defending_sliding_tackle, wage_brackets) 
+    return(temp)
+  }
+
+Pre_processed_f19_without_GK <- LogisticRegressionPreProcessing(f19_without_GK)
+Pre_processed_f20_without_GK <- LogisticRegressionPreProcessing(f20_without_GK)
+
+
+test_set <- Pre_processed_f20_without_GK
+training_set <- Pre_processed_f19_without_GK
+table(test_set$wage_brackets)
+
+# training_set$wage_brackets2 <- relevel(training_set$wage_brackets, ref = "0-100k")
+wage_logit <- multinom(wage_brackets ~., data = training_set)
+
+z <- summary(wage_logit)$coefficients/summary(wage_logit)$standard.errors
+# 2-tailed z test
+p <- (1 - pnorm(abs(z), 0, 1)) * 2
+p
