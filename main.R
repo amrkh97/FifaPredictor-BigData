@@ -1,13 +1,15 @@
+# Clear console (Can be done by pressing ctrl/cmd + L)
+cat("\014")
 # Clear environment
 rm(list=ls())
 # Get working directory
 getwd()
 
 #install.packages(c("dplyr","gridExtra","rworldmap",
-#                   "randomForest","reshape2","stringi"))
+#                   "randomForest","reshape2","stringi","ggpubr"))
+
+
 library(randomForest)
-library(grid)
-library(plyr)
 library(caret)
 library(e1071)
 library(ROCR)
@@ -17,19 +19,16 @@ library(gridExtra)
 library(rworldmap)
 library(ggplot2)
 library(reshape2)
-library(arules)
-library(arulesViz)
-library(tm)
-library(wordcloud)
-library(class)
-library(tidyr)
+library(ggpubr)
+theme_set(theme_pubr())
+
 
 # Read datasets
-f16 <- read.csv("Dataset/players_16.csv")
-f17 <- read.csv("Dataset/players_17.csv")
-f18 <- read.csv("Dataset/players_18.csv")
-f19 <- read.csv("Dataset/players_19.csv")
-f20 <- read.csv("Dataset/players_20.csv")
+f16_complete <- read.csv("Dataset/players_16.csv")
+f17_complete <- read.csv("Dataset/players_17.csv")
+f18_complete <- read.csv("Dataset/players_18.csv")
+f19_complete <- read.csv("Dataset/players_19.csv")
+f20_complete <- read.csv("Dataset/players_20.csv")
 
 # Get unnecessary columns
 unnecessaryColumns <- c("sofifa_id","player_url","dob","short_name",
@@ -38,11 +37,11 @@ unnecessaryColumns <- c("sofifa_id","player_url","dob","short_name",
                         "team_position","team_jersey_number","joined","contact_valid_until")
 
 # Remove unnecessary columns
-f16 <- f16[,!(names(f16) %in% unnecessaryColumns)]
-f17 <- f17[,!(names(f17) %in% unnecessaryColumns)]
-f18 <- f18[,!(names(f18) %in% unnecessaryColumns)]
-f19 <- f19[,!(names(f19) %in% unnecessaryColumns)]
-f20 <- f20[,!(names(f20) %in% unnecessaryColumns)]
+f16 <- f16_complete[,!(names(f16_complete) %in% unnecessaryColumns)]
+f17 <- f17_complete[,!(names(f17_complete) %in% unnecessaryColumns)]
+f18 <- f18_complete[,!(names(f18_complete) %in% unnecessaryColumns)]
+f19 <- f19_complete[,!(names(f19_complete) %in% unnecessaryColumns)]
+f20 <- f20_complete[,!(names(f20_complete) %in% unnecessaryColumns)]
 
 # Get top 5 leagues
 top5leagues <- c("Arsenal","Manchester United","Manchester City","Liverpool","Tottenham Hotspur","Chelsea",
@@ -73,7 +72,6 @@ addPositionColumn <- function(df){
   df <- mutate(df, Position = x)
   return(df)
 }
-
 
 
 graphTopCountries <- function(df){
@@ -204,7 +202,7 @@ plotCorrelationHeatMap <- function(df){
   dd <- as.dist((1-cormat)/2)
   hc <- hclust(dd)
   cormat <-cormat[hc$order, hc$order]
-  #cormat[upper.tri(cormat)] <- NA
+  cormat[upper.tri(cormat)] <- NA
   
   melted_cormat <- melt(cormat, na.rm = TRUE)
   
@@ -222,37 +220,6 @@ plotCorrelationHeatMap <- function(df){
   
 }
 
-prepareFootData <- function(df){
-  removedColumns <- c("nationality","value_eur","wage_eur","player_positions",
-                      "international_reputation","work_rate",
-                      "body_type","release_clause_eur","player_tags",
-                      "team_position","team_jersey_number","joined","contract_valid_until",
-                      "player_traits","value_brackets","loaned_from",
-                      "age","long_name","club","overall","potential",
-                      "ls","st","rs","rw","lw","lf","cf","rf","lam",
-                      "cam","ram","lm","rm","cm","lcm","rcm","cdm",
-                      "ldm","rdm","lwb","rwb","lb","lcb","cb","rcb","rb",
-                      "wage_brackets","preferred_foot","gk_diving","gk_handling",
-                      "gk_kicking","gk_reflexes","gk_speed","gk_positioning",
-                      "goalkeeping_diving","goalkeeping_handling","goalkeeping_kicking",
-                      "goalkeeping_positioning","goalkeeping_reflexes", "Position")
-  
-  temp <- df[,!(names(df) %in% removedColumns)]
-  temp
-  temp <- temp[complete.cases(temp), ]
-  return(temp)
-}
-
-addFootColumn <- function(df){
-  df$player_positions <- gsub(" ", "", substr(df$player_positions, 1, 2))
-  df$player_positions <- gsub(",", "", substr(df$player_positions, 1, 2))
-  x <- as.factor(df$preferred_foot)
-  levels(x) <- list(LEFT  = c("Left"), 
-                    RIGHT = c("Right"))
-  df <- mutate(df, foot = x)
-  return(df)
-}
-
 helperFun <- function(column){
   column <- as.numeric(unlist(stri_split_regex(column, "\\+|-", n_max = 1))[1])
   
@@ -264,127 +231,6 @@ handleNonNumericAttributes <- function(df){
   return(df)
 }
 
-prepareAssociationDataForPosition <- function(df){
-  temp <- df[!(df$Position =="GK"),]
-  temp <- temp[ , colSums(is.na(temp)) == 0]
-  temp <- temp[complete.cases(temp), ]
-  temp <- temp %>%select(Position, pace, shooting, passing, dribbling, defending, physic)
-  temp[,2] <- factor(temp[,2])
-  temp[,3] <- factor(temp[,3])
-  temp[,4] <- factor(temp[,4])
-  temp[,5] <- factor(temp[,5])
-  temp[,6] <- factor(temp[,6])
-  temp[,7] <- factor(temp[,7])
-  transaction <- as(temp,"transactions")
-  return(transaction)
-}
-checkTopRulesForPositions <- function(transaction){
-  arules::inspect(transaction[1:10])
-  itemFrequency(transaction[1:10])
-  itemFrequencyPlot(transaction, topN = 5)
-  associationRules <- apriori(data=transaction, parameter=list (supp=0.001,conf = 0.08), 
-                              appearance = list (default="lhs",rhs= c("Position=GK", "Position=FWD",
-                                                                      "Position=MID", "Position=DEF")), 
-                              control = list (verbose=F))
-  arules::inspect(associationRules)
-  support <- sort(associationRules, by = "support")[1:6]
-  arules::inspect(support)
-  confidence <- sort(associationRules, by = "confidence")[1:6]
-  arules::inspect(confidence)
-  lift <- sort(associationRules, by = "lift")[1:6]
-  arules::inspect(lift)
-  plot(associationRules, jitter = 0, engine = "plotly")
-}
-prepareDataForTagsPositions <- function(df){
-  #df <- unite(df, player_tags, c(player_traits, player_tags), remove=FALSE)
-  df <- df %>% select(player_positions, player_tags)
-  df <- df[!(is.na(df$player_tags) | df$player_tags==""), ]
-  return(df)
-}
-cleanCorpus <- function(df){
-  corp <- Corpus(VectorSource(df$player_tags)) 
-  corp <- tm_map(corp,removePunctuation)
-  corp <- tm_map(corp,stripWhitespace)
-  corp <- tm_map(corp, content_transformer(tolower))
-  corp <- tm_map(corp,removeNumbers)
-  corp <- tm_map(corp,removeWords,stopwords("en"))
-  return(corp)
-}
-generateTDM <- function(corp){
-  s.tdm <- TermDocumentMatrix(corp)
-  s.tdm <- removeSparseTerms(s.tdm, 0.999)
-  return(s.tdm)
-}
-generateTextDf <- function(lis){
-  s.mat <- t(data.matrix(lis[["tdm"]]))
-  s.df <- as.data.frame(s.mat, stringsAsFactors = FALSE)
-  s.df <- cbind(s.df, rep(lis[["name"]], nrow(s.df)))
-  colnames(s.df)[ncol(s.df)] <- "targetPositions"
-  return(s.df)
-}
-generateDistributionGraph <- function(df, val2){
-  f20_att <- removeGKColumns(df)
-  f20_att <- f20_att[1:38,]
-  f20_att$names <- colnames(f20_att[, 1:38])
-  ggbarplot(f20_att, x = "names", y = val2,
-            fill = "Position",               # change fill color by cyl
-            color = "white",            # Set bar border colors to white
-            palette = "jco",            # jco journal color palett. see ?ggpar
-            sort.val = "asc",          # Sort the value in dscending order
-            sort.by.groups = TRUE,     # Don't sort inside each group
-            x.text.angle = 90,           # Rotate vertically x axis texts
-            ggtheme = theme_pubclean()
-  )+
-    font("x.text", size = 8, vjust = 0.5)
-}
-startTextMiningToGetTopPositions <- function(df){
-  f20_mod <- prepareDataForTagsPositions(df)
-  corp.f20 <- cleanCorpus(f20_mod)
-  s.tdm <- generateTDM(corp.f20)
-  findFreqTerms(s.tdm, 65)
-  normalmat <- as.matrix(s.tdm)
-  normalmat <- t(normalmat)
-  pfrequency <- colSums(normalmat)
-  freq <- data.frame(sort(pfrequency, decreasing=TRUE))
-  head(freq, n=5)
-  pwords <- names(pfrequency[1:5]) 
-  wordcloud(pwords[1:5], pfrequency[1:5], random.color=TRUE, 
-            colors=c("red","green","blue","orange","yellow","pink"))
-  lis <- list(name=f20_mod$player_positions, tdm=s.tdm)
-  s.df <- generateTextDf(lis)
-  s.df$row_sum <- rowSums(s.df[,1:ncol(s.df)-1])
-  head(s.df[order(s.df$row_sum, decreasing=TRUE),c(ncol(s.df)-1, ncol(s.df))], n=5)
-}
-prepareCountriesData <- function(df){
-  df <- df %>% dplyr::select(player_positions, nationality)
-  df <- df[!(is.na(df$nationality) | df$nationality==""), ]
-  return(df)
-}
-
-getCountByNationality <- function(df){
-  tmp <- df %>%
-        dplyr::group_by(nationality) %>% # or: group_by_at(vars(-score))
-        dplyr::summarise(RW = sum(player_positions == "RW"), GK = sum(player_positions == "GK"),
-              LWB = sum(player_positions == "LWB"), LB = sum(player_positions == "LB"),
-              CB = sum(player_positions == "CB"), RB = sum(player_positions == "RB"),
-              RWB = sum(player_positions == "RWB"), LM = sum(player_positions == "LM"),
-              CDM = sum(player_positions == "CDM"), CM = sum(player_positions == "CM"),
-              CAM = sum(player_positions == "CAM"), RM = sum(player_positions == "RM"),
-              CF = sum(player_positions == "CF"), ST = sum(player_positions == "ST"),
-              LW = sum(player_positions == "LW"), RW = sum(player_positions == "RW"))
-  return(tmp)
-}
-drawWorldMapWithPositions <- function(df){
-  world <- ne_countries(scale = "medium", returnclass = "sf")
-  world$color <- ifelse(world$name %in% df$nationality, df$largest, "Didnt particpate in this fifa")
-  ggplot(data = world) +
-    geom_sf(aes(fill = as.factor(color))) 
-}
-getWorldPlot <- function(df){
-  temp <- getCountByNationality(df)
-  temp$largest <- colnames(temp[,2:ncol(temp)])[apply(temp[,2:ncol(temp)],1,which.max)]
-  drawWorldMapWithPositions(temp)
-}
 ####################################################################
 # Handle String attributes that caused errors:
 # For Example: attacking_crossing, ls and similar attributes.
@@ -393,6 +239,7 @@ f17 <- handleNonNumericAttributes(f17)
 f18 <- handleNonNumericAttributes(f18)
 f19 <- handleNonNumericAttributes(f19)
 f20 <- handleNonNumericAttributes(f20)
+
 ####################################################################
 # Factorise player positions:
 f16 <- addPositionColumn(f16)
@@ -400,6 +247,7 @@ f17 <- addPositionColumn(f17)
 f18 <- addPositionColumn(f18)
 f19 <- addPositionColumn(f19)
 f20 <- addPositionColumn(f20)
+
 ####################################################################
 #Age Statistics:
 
@@ -548,12 +396,6 @@ as.factor(testSet$factor)
 mylogit <- glm(factor~.,data =tempTest, family=binomial(link="logit"),
                na.action=na.omit)
 
-step(mylogit, direction = "backward")
-
-mylogit <- glm(factor ~ weight_kg + weak_foot + skill_moves + 
-                 pace + shooting + passing + dribbling + defending + physic, 
-               family = binomial(link = "logit"), data = tempTest, na.action = na.omit)
-
 summary(mylogit)
 pred = predict(mylogit,newdata = testSet, type="response")
 pred = round(pred)
@@ -620,240 +462,357 @@ plotCorrelationHeatMap(f18)
 plotCorrelationHeatMap(f19)
 plotCorrelationHeatMap(f20)
 
-############################################################################
-# Associations:
+#-------------------------------------- General Functions----------------------------------------------------------
+Plot <- function (df, x_axis, y_axis, g = FALSE, c = NULL)
+  {
+    ggplot(df,
+              aes(y = y_axis, x = x_axis, group = g, color = c)) + geom_point(shape=21, fill="#69b3a2", size=1)
+  }
 
-# Getting columns of association rules while removing empty rows
-# Note: playerPositions have no empty rows check using any(playerPositions == "")
-playerTags16 <- data.frame(f16$player_tags[f16$player_tags != ""])
-playerTags17 <- data.frame(f17$player_tags[f17$player_tags != ""])
-playerTags18 <- data.frame(f18$player_tags[f18$player_tags != ""])
-playerTags19 <- data.frame(f19$player_tags[f19$player_tags != ""])
-playerTags20 <- data.frame(f20$player_tags[f20$player_tags != ""])
 
-playerTraits16 <- data.frame(f16$player_traits[f16$player_traits != ""])
-playerTraits17 <- data.frame(f17$player_traits[f17$player_traits != ""])
-playerTraits18 <- data.frame(f18$player_traits[f18$player_traits != ""])
-playerTraits19 <- data.frame(f19$player_traits[f19$player_traits != ""])
-playerTraits20 <- data.frame(f20$player_traits[f20$player_traits != ""])
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------------- Height V.s. Dribbiling --------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
 
-playerPositions16 <- data.frame(f16$player_positions)
-playerPositions17 <- data.frame(f17$player_positions)
-playerPositions18 <- data.frame(f18$player_positions)
-playerPositions19 <- data.frame(f19$player_positions)
-playerPositions20 <- data.frame(f20$player_positions)
+cor(f16$height_cm , f16$skill_dribbling)
+cor(f17$height_cm , f17$skill_dribbling)
+cor(f18$height_cm , f18$skill_dribbling)
+cor(f19$height_cm , f19$skill_dribbling)
+cor(f20$height_cm , f20$skill_dribbling)
 
-# Removing spaces, hash symbil, and '?'
-playerTags16 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags16[[1]])
-playerTags17 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags17[[1]])
-playerTags18 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags18[[1]])
-playerTags19 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags19[[1]])
-playerTags20 <- gsub("\\s|\\#|\\?|\\Â", "", playerTags20[[1]])
+# there was no direct corelation between hight and dribbling
+# plotting a graph between height and dribbling for all the players was a total mess and did not indicate anything
+# so instead, i have took the average dribbling value for each height range 
+addHeightLevels <- function(df)
+  {
+  
+  height_breaks <- c(0, 160, 170, 180, 190, 200, Inf)
+  height_labels <- c("-160", "160-170", "170-180", "180-190", "190-200", "200+")
+  height_brackets <- cut(x=df$height_cm, breaks=height_breaks, 
+                          labels=height_labels, include.lowest = TRUE)
+  df <- mutate(df, height_brackets)
+  return (df)
+  }
 
-playerTraits16 <- gsub("\\s", "", playerTraits16[[1]])
-playerTraits17 <- gsub("\\s", "", playerTraits17[[1]])
-playerTraits18 <- gsub("\\s", "", playerTraits18[[1]])
-playerTraits19 <- gsub("\\s", "", playerTraits19[[1]])
-playerTraits20 <- gsub("\\s", "", playerTraits20[[1]])
+removeGoalKeapers <- function (df)
+  {
+  temp <- subset(df , df$player_positions != "GK")
+  return(temp)
+  }
 
-playerPositions16 <- gsub("\\s", "", playerPositions16[[1]])
-playerPositions17 <- gsub("\\s", "", playerPositions17[[1]])
-playerPositions18 <- gsub("\\s", "", playerPositions18[[1]])
-playerPositions19 <- gsub("\\s", "", playerPositions19[[1]])
-playerPositions20 <- gsub("\\s", "", playerPositions20[[1]])
+getDribblingAverage <- function (df , c)
+  {
+  return (colSums(select(df[df$height_brackets == c,], dribbling )) / NROW(df[df$height_brackets == c,]))
+  }
 
-# Converting to transacions
-playerTags16 <- as(strsplit(playerTags16, ","), "transactions")
-playerTags17 <- as(strsplit(playerTags17, ","), "transactions")
-playerTags18 <- as(strsplit(playerTags18, ","), "transactions")
-playerTags19 <- as(strsplit(playerTags19, ","), "transactions")
-playerTags20 <- as(strsplit(playerTags20, ","), "transactions")
+AddDribblingAverageToDataframe <- function (df , array)
+ {
+  height_breaks <- c(0, 160, 170, 180, 190, 200, Inf)
+  dribbling_average_labels <- array
+  dribbling_average <- cut(x=df$height_cm, breaks=height_breaks, 
+                         labels=dribbling_average_labels, include.lowest = TRUE)
+  df <- mutate(df, dribbling_average)
+  
+  df$dribbling_average <-  as.numeric(as.character(df$dribbling_average))
+  
+  return(df)
+  
+  }
+PlotConcatenatedDribblingAverage <- function (fifa_without_GK_vector , average_dribbling_matrix)
+  {
+    p1 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[1]] , average_dribbling_matrix[1,])
+    p2 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[2]] , average_dribbling_matrix[2,])
+    p3 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[3]] , average_dribbling_matrix[3,])
+    p4 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[4]] , average_dribbling_matrix[4,])
+    p5 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[5]] , average_dribbling_matrix[5,])
+    
+    visuals <- rbind(p1,p2,p3,p4,p5)
+    ggplot(visuals,
+           aes(y = dribbling_average,  x = height_brackets, group = season, color = season)) + geom_point(shape=21, fill="#69b3a2", size=4) +  geom_line()  + ggtitle("average dribbling for each height range")
 
-playerTraits16 <- as(strsplit(playerTraits16, ","), "transactions")
-playerTraits17 <- as(strsplit(playerTraits17, ","), "transactions")
-playerTraits18 <- as(strsplit(playerTraits18, ","), "transactions")
-playerTraits19 <- as(strsplit(playerTraits19, ","), "transactions")
-playerTraits20 <- as(strsplit(playerTraits20, ","), "transactions")
+  }
+# creating a matrix that will contain average dribbling skill for each height range per each fifa season
+creatingCellsForMatrix <- function (fifa_without_GK_vector)
+  {
+  height_levels <- c("-160","160-170","170-180","180-190","190-200","200+")
+  cells <- c()
+  for( fifa in fifa_without_GK_vector )
+  {
+    for (level in height_levels)
+    {
+      cells <-c(cells, getDribblingAverage(fifa,level))
+    }
+  }
+  return(cells)
+  }
 
-playerPositions16 <- as(strsplit(playerPositions16, ","), "transactions")
-playerPositions17 <- as(strsplit(playerPositions17, ","), "transactions")
-playerPositions18 <- as(strsplit(playerPositions18, ","), "transactions")
-playerPositions19 <- as(strsplit(playerPositions19, ","), "transactions")
-playerPositions20 <- as(strsplit(playerPositions20, ","), "transactions")
+# removing all goal keapers rows as they have an NA in the driblling cloumns
+f16_without_GK <- removeGoalKeapers(f16)
+f17_without_GK <- removeGoalKeapers(f17)
+f18_without_GK <- removeGoalKeapers(f18)
+f19_without_GK <- removeGoalKeapers(f19)
+f20_without_GK <- removeGoalKeapers(f20)
 
-# Frequency Plots
-itemFrequencyPlot(playerTags16, topN = 10)
-itemFrequencyPlot(playerTags17, topN = 10)
-itemFrequencyPlot(playerTags18, topN = 10)
-itemFrequencyPlot(playerTags19, topN = 10)
-itemFrequencyPlot(playerTags20, topN = 10)
+# adding height levels column i.e. between 160 cm and 170 cm and so on
+f16_without_GK <- addHeightLevels(f16_without_GK)
+f17_without_GK <- addHeightLevels(f17_without_GK)
+f18_without_GK <- addHeightLevels(f18_without_GK)
+f19_without_GK <- addHeightLevels(f19_without_GK)
+f20_without_GK <- addHeightLevels(f20_without_GK)
 
-itemFrequencyPlot(playerTraits16, topN = 10)
-itemFrequencyPlot(playerTraits17, topN = 10)
-itemFrequencyPlot(playerTraits18, topN = 10)
-itemFrequencyPlot(playerTraits19, topN = 10)
-itemFrequencyPlot(playerTraits20, topN = 10)
+# add fifa season number attribute, will be needed in ploting the graphs to connect the point for each fifa season
+f16_without_GK <- cbind(season = 16,f16_without_GK)
+f17_without_GK <- cbind(season = 17,f17_without_GK)
+f18_without_GK <- cbind(season = 18,f18_without_GK)
+f19_without_GK <- cbind(season = 19,f19_without_GK)
+f20_without_GK <- cbind(season = 20,f20_without_GK)
 
-itemFrequencyPlot(playerPositions16, topN = 10)
-itemFrequencyPlot(playerPositions17, topN = 10)
-itemFrequencyPlot(playerPositions18, topN = 10)
-itemFrequencyPlot(playerPositions19, topN = 10)
-itemFrequencyPlot(playerPositions20, topN = 10)
+# rows names and columns names for creating the matrix of average dribbling value per each height level for each fifa season
+rnames <- c("f16","f17","f18","f19","f20")
+cnames <- c("less_than_160_dribbling","between_160_170_dribbling","between_170_180_dribbling"
+            ,"between_180_190_dribbling","between_190_200_dribbling","more_than_200_dribbling")
 
-# Using the Apriori Algorithm
-playerTagsAssociationRules16 <- apriori(data = playerTags16, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerTagsAssociationRules17 <- apriori(data = playerTags17, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerTagsAssociationRules18 <- apriori(data = playerTags18, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerTagsAssociationRules19 <- apriori(data = playerTags19, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerTagsAssociationRules20 <- apriori(data = playerTags20, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
 
-inspect(playerTagsAssociationRules16)
-inspect(playerTagsAssociationRules17)
-inspect(playerTagsAssociationRules18)
-inspect(playerTagsAssociationRules19)
-inspect(playerTagsAssociationRules20)
+fifa_without_GK_vector <- list(f16_without_GK,f17_without_GK,f18_without_GK,f19_without_GK,f20_without_GK)
+average_dribbling_matrix <- matrix(creatingCellsForMatrix(fifa_without_GK_vector), nrow = 5, ncol = 6, 
+                                   byrow =TRUE, dimnames = list(rnames, cnames))
 
-# inspect(sort(playerTagsAssociationRules16, by = "support"))
-# inspect(sort(playerTagsAssociationRules16, by = "confidence"))
-# inspect(sort(playerTagsAssociationRules16, by = "lift"))
+#plotting average dribbling value per each height level (this is done for each fifa season and all of them will be plotted on the same graph)
+PlotConcatenatedDribblingAverage(fifa_without_GK_vector,average_dribbling_matrix )
 
-plot(playerTagsAssociationRules16, jitter = 0, engine = "plotly")
-plot(playerTagsAssociationRules17, jitter = 0, engine = "plotly")
-plot(playerTagsAssociationRules18, jitter = 0, engine = "plotly")
-plot(playerTagsAssociationRules19, jitter = 0, engine = "plotly")
-plot(playerTagsAssociationRules20, jitter = 0, engine = "plotly")
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------------- Player Position V.s Wage ------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
 
-playerTraitsAssociationRules16 <- apriori(data = playerTraits16, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerTraitsAssociationRules17 <- apriori(data = playerTraits17, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerTraitsAssociationRules18 <- apriori(data = playerTraits18, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerTraitsAssociationRules19 <- apriori(data = playerTraits19, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerTraitsAssociationRules20 <- apriori(data = playerTraits20, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+Plot(f16, y_axis =  log10(f16$wage_eur), x_axis =f16$Position ) # not really useful
+table(f16$Position, f16$wage_brackets)
+table(f17$Position, f17$wage_brackets)
+table(f18$Position, f18$wage_brackets)
+table(f19$Position, f19$wage_brackets)
+table(f20$Position, f20$wage_brackets)
 
-inspect(playerTraitsAssociationRules16)
-inspect(playerTraitsAssociationRules17)
-inspect(playerTraitsAssociationRules18)
-inspect(playerTraitsAssociationRules19)
-inspect(playerTraitsAssociationRules20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------------- Preferred-foot V.s wage --------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
 
-# inspect(sort(playerTraitsAssociationRules, by = "support"))
-# inspect(sort(playerTraitsAssociationRules, by = "confidence"))
-# inspect(sort(playerTraitsAssociationRules, by = "lift"))
+ggplot(f20,
+           aes(y = wage_eur,  x = preferred_foot)) +
+            geom_point(shape=21, size=4, aes(color = preferred_foot)) + 
+              ggtitle("wages for each preferred foot players")
 
-plot(playerTraitsAssociationRules16, jitter = 0, engine = "plotly")
-plot(playerTraitsAssociationRules17, jitter = 0, engine = "plotly")
-plot(playerTraitsAssociationRules18, jitter = 0, engine = "plotly")
-plot(playerTraitsAssociationRules19, jitter = 0, engine = "plotly")
-plot(playerTraitsAssociationRules20, jitter = 0, engine = "plotly")
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Linear regression Model to predict wage ---------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
 
-playerPositionsAssociationRules16 <- apriori(data = playerPositions16, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerPositionsAssociationRules17 <- apriori(data = playerPositions17, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerPositionsAssociationRules18 <- apriori(data = playerPositions18, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerPositionsAssociationRules19 <- apriori(data = playerPositions19, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
-playerPositionsAssociationRules20 <- apriori(data = playerPositions20, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+# TODO build a regression model
 
-inspect(playerPositionsAssociationRules16)
-inspect(playerPositionsAssociationRules17)
-inspect(playerPositionsAssociationRules18)
-inspect(playerPositionsAssociationRules19)
-inspect(playerPositionsAssociationRules20)
+# first i will build a linear regression model for all type of players but Goalkeapers
+# the model will be trained on fifa16, fifa17 and fifa18 then will be tested on fifa19 and fifa20
+# due to incosistency that may occur; a second case will be handeled were the model will train on a subset of each season then predict the other
 
-# inspect(sort(playerPositionsAssociationRules, by = "support"))
-# inspect(sort(playerPositionsAssociationRules, by = "confidence"))
-# inspect(sort(playerPositionsAssociationRules, by = "lift"))
+# first case (train on fifa16, fifa17 and fifa18)
+# preprocessing (bind all of fifa16 till 18 datasets)
+f16_till_18 <- rbind(f16_without_GK, f17_without_GK, f18_without_GK)
+NROW( f16_till_18[f16_till_18$long_name == "Lionel Andrés Messi Cuccittini"]) # just to check that lionel Messi exists in 3 rows
+# remove some columns with NA 
+f16_till_18 <- f16_till_18[, !(colnames(f16_till_18) %in% c("gk_diving", "gk_handling", "gk_kicking", "gk_reflexes",
+                                                            "gk_speed", "gk_positioning", "release_clause_eur"))]
 
-plot(playerPositionsAssociationRules16, jitter = 0, engine = "plotly")
-plot(playerPositionsAssociationRules17, jitter = 0, engine = "plotly")
-plot(playerPositionsAssociationRules18, jitter = 0, engine = "plotly")
-plot(playerPositionsAssociationRules19, jitter = 0, engine = "plotly")
-plot(playerPositionsAssociationRules20, jitter = 0, engine = "plotly")
+apply(f16_till_18, 2, function(x) any(is.na(x))) # chech if there is any NA
+training = data.frame ( f16_till_18$wage_eur, f16_till_18$age, f16_till_18$height_cm , f16_till_18$weight_kg ,f16_till_18$overall ,
+                        f16_till_18$potential ,f16_till_18$value_eur, f16_till_18$skill_moves ,f16_till_18$pace , 
+                        f16_till_18$shooting , f16_till_18$passing ,f16_till_18$dribbling , f16_till_18$defending , 
+                        f16_till_18$physic ,f16_till_18$attacking_crossing ,f16_till_18$attacking_finishing , 
+                        f16_till_18$attacking_heading_accuracy ,f16_till_18$attacking_short_passing , 
+                        f16_till_18$attacking_volleys , f16_till_18$skill_dribbling ,f16_till_18$skill_curve , 
+                        f16_till_18$skill_fk_accuracy , f16_till_18$skill_long_passing ,f16_till_18$skill_ball_control , 
+                        f16_till_18$movement_acceleration , f16_till_18$movement_sprint_speed ,
+                        f16_till_18$movement_agility , f16_till_18$movement_reactions , f16_till_18$movement_balance ,
+                        f16_till_18$power_shot_power , f16_till_18$power_jumping , f16_till_18$power_stamina ,
+                        f16_till_18$power_strength , f16_till_18$power_long_shots , f16_till_18$mentality_aggression ,
+                        f16_till_18$mentality_interceptions , f16_till_18$mentality_positioning , 
+                        f16_till_18$mentality_vision ,f16_till_18$mentality_penalties , f16_till_18$defending_marking , 
+                        f16_till_18$defending_standing_tackle ,f16_till_18$defending_sliding_tackle)
+colnames(training) <- c("wage_eur", "age","height_cm","weight_kg","overall","potential","value_eur","skill_moves","pace",
+                        "shooting","passing","dribbling","defending","physic","attacking_crossing","attacking_finishing",
+                        "attacking_heading_accuracy","attacking_short_passing","attacking_volleys","skill_dribbling",
+                        "skill_curve","skill_fk_accuracy","skill_long_passing","skill_ball_control","movement_acceleration",
+                        "movement_sprint_speed","movement_agility","movement_reactions","movement_balance","power_shot_power",
+                        "power_jumping","power_stamina","power_strength","power_long_shots","mentality_aggression",
+                        "mentality_interceptions","mentality_positioning","mentality_vision","mentality_penalties",
+                        "defending_marking","defending_standing_tackle","defending_sliding_tackle")
 
-############################################################################
-# Association Rules For Position:
-f16_transaction <- prepareAssociationDataForPosition(f16)
-checkTopRulesForPositions(f16_transaction)
-f17_transaction <- prepareAssociationDataForPosition(f17)
-checkTopRulesForPositions(f17_transaction)
-f18_transaction <- prepareAssociationDataForPosition(f18)
-checkTopRulesForPositions(f18_transaction)
-f19_transaction <- prepareAssociationDataForPosition(f19)
-checkTopRulesForPositions(f19_transaction)
-f20_transaction <- prepareAssociationDataForPosition(f20)
-checkTopRulesForPositions(f20_transaction)
-############################################################################
-# Text Minning Positionand Tags:
-# F20
-startTextMiningToGetTopPositions(f20)
-# F19
-startTextMiningToGetTopPositions(f19)
-# F18
-startTextMiningToGetTopPositions(f18)
-# F17
-startTextMiningToGetTopPositions(f17)
-# F16
-startTextMiningToGetTopPositions(f16)
-############################################################################
-# Plot Attributes
-library(ggpubr)
-# F20
-generateDistributionGraph(f20, "pace")
-generateDistributionGraph(f20, "Position")
-generateDistributionGraph(f20, "shooting")
-generateDistributionGraph(f20, "defending")
-generateDistributionGraph(f20, "physic")
-generateDistributionGraph(f20, "passing")
-generateDistributionGraph(f20, "dribbling")
-# F19
-generateDistributionGraph(f19, "pace")
-generateDistributionGraph(f19, "Position")
-generateDistributionGraph(f19, "shooting")
-generateDistributionGraph(f19, "defending")
-generateDistributionGraph(f19, "physic")
-generateDistributionGraph(f19, "passing")
-generateDistributionGraph(f19, "dribbling")
-# F18
-generateDistributionGraph(f18, "pace")
-generateDistributionGraph(f18, "Position")
-generateDistributionGraph(f18, "shooting")
-generateDistributionGraph(f18, "defending")
-generateDistributionGraph(f18, "physic")
-generateDistributionGraph(f18, "passing")
-generateDistributionGraph(f18, "dribbling")
-# F17
-generateDistributionGraph(f17, "pace")
-generateDistributionGraph(f17, "Position")
-generateDistributionGraph(f17, "shooting")
-generateDistributionGraph(f17, "defending")
-generateDistributionGraph(f17, "physic")
-generateDistributionGraph(f17, "passing")
-generateDistributionGraph(f17, "dribbling")
-# F16
-generateDistributionGraph(f16, "pace")
-generateDistributionGraph(f16, "Position")
-generateDistributionGraph(f16, "shooting")
-generateDistributionGraph(f16, "defending")
-generateDistributionGraph(f16, "physic")
-generateDistributionGraph(f16, "passing")
-generateDistributionGraph(f16, "dribbling")
-#------------------------------------------------------------
-# Dominate positions in each country
-library(ggplot2)
-theme_set(theme_bw())
-library(sf)
-library(rnaturalearth)
-library(rnaturalearthdata)
-library(rgeos)
-# F20
-f20_nation <- prepareCountriesData(f20)
-getWorldPlot(f20_nation)
-# F19
-f19_nation <- prepareCountriesData(f19)
-getWorldPlot(f19_nation)
-# F18
-f18_nation <- prepareCountriesData(f18)
-getWorldPlot(f18_nation)
-# F17
-f17_nation <- prepareCountriesData(f17)
-getWorldPlot(f17_nation)
-# F16
-f16_nation <- prepareCountriesData(f16)
-getWorldPlot(f16_nation)
+wage_model <- lm (wage_eur ~ age +  height_cm  +  weight_kg  + overall  + 
+                  potential  + value_eur +  skill_moves  + pace  +  
+                  shooting  +  passing  + dribbling  +  defending  +  
+                  physic  + attacking_crossing  + attacking_finishing  +  
+                  attacking_heading_accuracy  + attacking_short_passing  +  
+                  attacking_volleys  +  skill_dribbling  + skill_curve  +  
+                  skill_fk_accuracy  +  skill_long_passing  + skill_ball_control  +  
+                  movement_acceleration  +  movement_sprint_speed  + 
+                  movement_agility  +  movement_reactions  +  movement_balance  + 
+                  power_shot_power  +  power_jumping  +  power_stamina  + 
+                  power_strength  +  power_long_shots  +  mentality_aggression  + 
+                  mentality_interceptions  +  mentality_positioning  +  
+                  mentality_vision  + mentality_penalties  +  defending_marking  +  
+                  defending_standing_tackle  + defending_sliding_tackle, data = training)
+
+summary(wage_model)
+# predict the same data
+wage_predict <- predict(wage_model)
+wage_df <- data.frame(wage_predict, f16_till_18$wage_eur)
+colnames(wage_df) <- c("predicted_wage", "actual_wage")
+wage_df <- transform(wage_df, new.col = actual_wage-predicted_wage)
+colnames(wage_df) <- c("predicted_wage", "actual_wage", "difference")
+# plotting both of actual and predicted wages
+ggplot(wage_df,
+       aes(y = difference, x = actual_wage)) + geom_point(shape=21, fill="#69b3a2", size=1)
+# Calculate the mean squared error (MSE)of the training data.
+sm <- summary(wage_model)
+MSE <- mean(sm$residuals^2)
+MSE
+max(wage_df$difference)
+# omitting variables with high p value ( weight, power_shot, ) and with incorrect sign coeff (skill_moves, dribbling, physic, passing, attacking_crossing till the end)
+# will try to restore one by one
+training = data.frame (f16_till_18$wage_eur, f16_till_18$age, f16_till_18$height_cm, f16_till_18$weight_kg, 
+                    f16_till_18$overall , f16_till_18$potential , f16_till_18$value_eur , f16_till_18$skill_moves, 
+                    f16_till_18$pace , f16_till_18$shooting , 
+                    f16_till_18$defending)
+colnames(training) <- c("wage_eur", "age","height_cm","weight_kg","overall","potential","value_eur","skill_moves","pace",
+                        "shooting","defending")
+
+
+wage_model <- lm (wage_eur ~ age + height_cm + weight_kg +
+                    overall + potential + value_eur + skill_moves +
+                    pace + shooting + 
+                    defending , data = training)
+summary(wage_model)
+# predict the same data
+wage_predict <- predict(wage_model)
+wage_predict[wage_predict < 0] = 0
+wage_df <- data.frame(wage_predict, f16_till_18$wage_eur)
+colnames(wage_df) <- c("predicted_wage", "actual_wage")
+wage_df <- transform(wage_df, new.col = actual_wage-predicted_wage)
+colnames(wage_df) <- c("predicted_wage", "actual_wage", "difference")
+# plotting both of actual and predicted wages
+ggplot(wage_df,
+       aes(y = predicted_wage, x = actual_wage)) + geom_point(shape=21, fill="#69b3a2", size=1)
+# Calculate the mean squared error (MSE)of the training data.
+sm <- summary(wage_model)
+MSE <- mean(sm$residuals^2)
+MSE_after_zero_addition <- mean(wage_df$difference^2)
+MSE
+MSE_after_zero_addition
+max(wage_df$difference)
+
+#it might looks like there it has a big mean squared error , however the maximum difference between the actual and the
+# predicted wage is around 200k which is really small comparing to the minimum wage range 0-100k
+
+# now try to predict fifa19 and fifa20 wages
+f19_and_20 <- rbind(f19_without_GK, f20_without_GK)
+#exctract only needed columns
+f19_and_20_test <- select(f19_and_20, age, height_cm, weight_kg, overall, potential, value_eur, skill_moves, pace, shooting, passing, dribbling, defending,
+       physic, attacking_crossing, attacking_finishing, attacking_heading_accuracy, attacking_short_passing, attacking_volleys, skill_dribbling,
+       attacking_short_passing, attacking_volleys, skill_dribbling, skill_curve, skill_fk_accuracy, skill_long_passing,
+       skill_ball_control, movement_acceleration, movement_sprint_speed, movement_agility, movement_reactions, movement_balance, power_jumping,
+       power_stamina, power_strength, power_long_shots, mentality_aggression, mentality_interceptions, mentality_positioning,
+       mentality_vision, mentality_penalties, defending_marking, defending_standing_tackle, defending_sliding_tackle)
+f19_and_20_test <- as.data.frame(f19_and_20_test)
+wage_predict <- predict(wage_model, newdata =  f19_and_20_test)
+wage_df <- data.frame(wage_predict, f19_and_20$wage_eur)
+colnames(wage_df) <- c("predicted_wage", "actual_wage")
+wage_df <- transform(wage_df, new.col = actual_wage-predicted_wage)
+colnames(wage_df) <- c("predicted_wage", "actual_wage", "difference")
+# plotting both of actual and predicted wages
+ggplot(wage_df,
+       aes(y = predicted_wage, x = actual_wage)) + geom_point(shape=21, fill="#69b3a2", size=1)
+# Calculate the mean squared error (MSE)of the training data.
+sm <- summary(wage_model)
+MSE <- mean(sm$residuals^2)
+MSE_after_zero_addition <- mean(wage_df$difference^2)
+MSE
+MSE_after_zero_addition
+max(wage_df$difference)
+min(wage_df$difference)
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Linear regression Model to predict wage ---------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#--------------------------------------- Second Trial -------------------------------------------------------------
+LinearRegressionPreProcessing <- function (df)
+  {
+    temp <- select (df, wage_eur, age,potential,value_eur,
+                        dribbling,defending,power_stamina,
+                        power_long_shots,mentality_interceptions,mentality_positioning,
+                        mentality_vision,mentality_penalties,defending_marking,
+                        defending_sliding_tackle) 
+    return(temp)
+  }
+pre_processed_f19 <- LinearRegressionPreProcessing(f19_without_GK)
+training <- pre_processed_f19[1:10000,]
+test <- pre_processed_f19[10001:15784,]
+
+
+wage_model <- lm (wage_eur ~ age   + 
+                  potential  + value_eur  +  
+                  dribbling  +  defending  + power_stamina  + 
+                  power_long_shots +  mentality_interceptions  +  mentality_positioning  +  
+                  mentality_vision  + mentality_penalties  +  defending_marking  +  
+                  defending_sliding_tackle, data = training)
+summary(wage_model)
+wage_predict <- predict(wage_model)
+any(wage_predict < 0)
+wage_predict[wage_predict < 0] = 0
+wage_df <- data.frame(wage_predict, training$wage_eur)
+colnames(wage_df) <- c("predicted_wage", "actual_wage")
+wage_df <- transform(wage_df, new.col = actual_wage-predicted_wage)
+colnames(wage_df) <- c("predicted_wage", "actual_wage", "difference")
+# plotting both of actual and predicted wages
+ggplot(wage_df,
+       aes(y = predicted_wage, x = actual_wage)) + geom_point(shape=21, fill="#69b3a2", size=1)
+# Calculate the mean squared error (MSE)of the training data.
+sm <- summary(wage_model)
+MSE <- mean(sm$residuals^2)
+MSE_after_zero_addition <- mean(wage_df$difference^2)
+MSE
+MSE_after_zero_addition
+max(wage_df$difference)
+
+# test wage model
+
+wage_predict <- predict(wage_model, newdata =  test)
+any(wage_predict < 0)
+wage_predict[wage_predict < 0] = 0
+wage_df <- data.frame(wage_predict, test$wage_eur)
+colnames(wage_df) <- c("predicted_wage", "actual_wage")
+wage_df <- transform(wage_df, new.col = actual_wage-predicted_wage)
+colnames(wage_df) <- c("predicted_wage", "actual_wage", "difference")
+# plotting both of actual and predicted wages
+ggplot(wage_df,
+       aes(y = predicted_wage, x = actual_wage)) + geom_point(shape=21, fill="#69b3a2", size=1)
+# Calculate the mean squared error (MSE)of the training data.
+sm <- summary(wage_model)
+MSE <- mean(sm$residuals^2)
+MSE_after_zero_addition <- mean(wage_df$difference^2)
+MSE
+MSE_after_zero_addition
