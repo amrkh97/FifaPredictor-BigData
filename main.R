@@ -338,3 +338,10 @@ bestTeams18[getBestTeamByOverall(F18_442, F18_352, F18_433)]
 # It can be observed that teams with messi and cristiano are always the best formation:
 # F20 Team is better than that of other years:
 getBestTeamByOverall(F20_433, F19_433, F18_433)
+
+########################################################
+# Lionel Messi VS Cristiano Ronaldo:
+
+plotMessiVsCristiano()
+
+

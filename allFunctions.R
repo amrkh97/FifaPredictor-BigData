@@ -2,7 +2,7 @@
 #                   "randomForest","reshape2","stringi",
 #                   "class","tidyr","sf","rnaturalearth",
 #                   "rgeos","rnaturalearthdata","jpeg,
-#                   "ggpubr", "magritter"))
+#                   "ggpubr", "magritter","ggimage"))
 #
 library(randomForest)
 library(grid)
@@ -24,8 +24,10 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 library(rgeos)
 library(jpeg)
+library(png)
 library(magrittr)
 library(ggpubr)
+library(ggimage)
 ########################################################################
 # Function Definitions:
 
@@ -388,4 +390,42 @@ getBestTeamByOverall <- function(firstTeam, secondTeam, thirdTeam){
   return(which.max(allTeams))
   
 }
+
+
+plotMessiVsCristiano <- function(){
+  
+  
+  MC16 <- f16  %>% select(short_name, overall)
+  MC17 <- f17  %>% select(short_name, overall)
+  MC18 <- f18  %>% select(short_name, overall)
+  MC19 <- f19  %>% select(short_name, overall)
+  MC20 <- f20  %>% select(short_name, overall)
+  
+  
+  MC16 <- MC16[MC16$short_name %in% c("L. Messi", "Cristiano Ronaldo"),]
+  MC17 <- MC17[MC17$short_name %in% c("L. Messi", "Cristiano Ronaldo"),]
+  MC18 <- MC18[MC18$short_name %in% c("L. Messi", "Cristiano Ronaldo"),]
+  MC19 <- MC19[MC19$short_name %in% c("L. Messi", "Cristiano Ronaldo"),]
+  MC20 <- MC20[MC20$short_name %in% c("L. Messi", "Cristiano Ronaldo"),]
+  
+  MC <- rbind.fill(MC16,MC17,MC18, MC19, MC20)
+  
+  year <- c("2016","2016","2017","2017","2018","2018","2019","2019","2020","2020")
+  
+  messi_image <- readPNG("Images/messi.png")
+  cristiano_image <- readPNG("Images/cristiano.png")
+  
+  P <- ggplot(data=MC, aes(x=year, y=overall, group=short_name)) +
+    geom_line(aes(colour=short_name), size=5)+
+    ylim(92, 95)+
+    labs(color = "Player's Name")
+  
+  plot(P)
+  
+  grid.raster(messi_image, 0.7, 0.7, width=.2) # print homer in ll conrner
+  grid.raster(cristiano_image, 0.7, 0.4, width=.12) # print homer in ll conrner
+  
+  
+}
+
 
