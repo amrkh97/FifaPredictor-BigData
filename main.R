@@ -6,7 +6,7 @@ rm(list=ls())
 getwd()
 
 #install.packages(c("dplyr","gridExtra","rworldmap",
-#                   "randomForest","reshape2","stringi","ggpubr", "nnet"))
+#                   "randomForest","reshape2","stringi","ggpubr", "nnet" , "forcats"))
 
 
 require(randomForest)
@@ -21,6 +21,7 @@ require(ggplot2)
 require(reshape2)
 require(ggpubr)
 require(nnet)
+require(forcats)
 theme_set(theme_pubr())
 
 
@@ -31,8 +32,17 @@ f18_complete <- read.csv("Dataset/players_18.csv")
 f19_complete <- read.csv("Dataset/players_19.csv")
 f20_complete <- read.csv("Dataset/players_20.csv")
 
+#add season columns
+f16_complete <- cbind(season = 16,f16_complete)
+f17_complete <- cbind(season = 17,f17_complete)
+f18_complete <- cbind(season = 18,f18_complete)
+f19_complete <- cbind(season = 19,f19_complete)
+f20_complete <- cbind(season = 20,f20_complete)
+
 # Get unnecessary columns
-unnecessaryColumns <- c("sofifa_id","player_url","dob","short_name",
+
+# Abdelgawad will need the short name
+unnecessaryColumns <- c("sofifa_id","player_url","dob",
                         "relaease_clause_eur","real_face","nation_position",
                         "nation_jersey_number","mentality_composure","loaned_from",
                         "team_position","team_jersey_number","joined","contact_valid_until")
@@ -533,7 +543,7 @@ PlotConcatenatedDribblingAverage <- function (fifa_without_GK_vector , average_d
     
     visuals <- rbind(p1,p2,p3,p4,p5)
     ggplot(visuals,
-           aes(y = dribbling_average,  x = height_brackets, group = season, color = season)) + geom_point(shape=21, fill="#69b3a2", size=4) +  geom_line()  + ggtitle("average dribbling for each height range")
+           aes(y = dribbling_average,  x = height_brackets, group = season)) + geom_line(aes(color = factor(season)))  + ggtitle("average dribbling for each height range")
 
   }
 # creating a matrix that will contain average dribbling skill for each height range per each fifa season
@@ -858,3 +868,325 @@ z <- summary(wage_logit)$coefficients/summary(wage_logit)$standard.errors
 # 2-tailed z test
 p <- (1 - pnorm(abs(z), 0, 1)) * 2
 p
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Finding the most valuable teams -----------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotValuableTeams <- function(df)
+ {
+  #  fifa_grouped_by_club <- group_by(df,club)
+  #  fifa_grouped_by_club_summarized <- summarise(fifa_grouped_by_club, club.squad.value = round(sum(value_eur)/1000000))
+  #  fifa_grouped_by_club_summarized_arranged <- arrange(fifa_grouped_by_club_summarized,-club.squad.value)
+  #  fifa_grouped_by_club_summarized_arranged <- head(fifa_grouped_by_club_summarized_arranged,10)
+   df %>% group_by(club) %>%
+      summarise(club.squad.value = round(sum(value_eur)/1000000)) %>%
+          arrange(-club.squad.value) %>%
+            head(10) %>%
+
+    ggplot(aes(
+                x = fct_reorder(as.factor(club),club.squad.value), y = club.squad.value, label = club.squad.value))+
+      geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+      geom_bar(stat = "identity", fill = "violetred1")+
+      coord_flip()+
+      xlab("Club")+
+      ylab("Squad Value in Million")+
+      labs(title = paste("Fifa",df$season ,"Most Valuable Teams")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+ }
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Finding the Top Wage Bills teams ----------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotWageBills <- function(df)
+  {
+    df %>% group_by(club) %>%
+      summarise(total_wage = round(sum(wage_eur)/1000000 , digits = 2)) %>%
+          arrange(-total_wage) %>%
+            head(10) %>%
+
+    ggplot(aes(
+                x = fct_reorder(as.factor(club),total_wage), y = total_wage, label = total_wage))+
+      geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+      geom_bar(stat = "identity", fill = "violetred1")+
+      coord_flip()+
+      xlab("Club")+
+      ylab( "Squad Wages in Million")+
+      labs(title =  paste("Fifa",df$season ,"Top Wage Bills")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Finding Number of Superstars in teams -----------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotSuperStars <- function (df)
+  {
+    df %>%
+      mutate(super_star = ifelse(overall> 86, "super star","non-super star"))%>%
+        group_by(club)%>%
+          filter(super_star=="super star")%>%
+            summarise(players_count = n())%>%
+              arrange(-players_count)%>%
+  ggplot(aes(x = as.factor(club) %>%
+               fct_reorder(players_count), y = players_count, label = players_count))+
+  geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+  geom_bar(stat = "identity", fill = "palegreen2")+
+  coord_flip()+
+  xlab("Club")+
+  ylab( "Number of Superstars") +
+  labs(title =  paste("Fifa",df$season,"Number of Superstars per top 10 clubs")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Age Distribution amongst the Top Valued Clubs ---------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotAgesForTopValuedClubs <- function(df)
+  {
+    most_valued_clubs <- df %>%
+      group_by(club)%>%
+        summarise(club_squad_value = round(sum(value_eur)/1000000))%>%
+          arrange(-club_squad_value)%>%
+            head(10)
+
+    clubs_and_ages <- df[df$club %in% most_valued_clubs[[1]], c("club", "age")]
+
+    ggplot(clubs_and_ages, aes(x = age, y = club, fill = club)) +
+    geom_violin(trim = F)+
+    geom_boxplot(width = 0.1)+
+    theme(axis.text.x = element_text(angle = 90), legend.position = "none")+
+    ylab("Age distribution amongst Clubs") +
+    labs(title = paste("Fifa",df$season,"Age Distribution amongst the Top Valued Clubs")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Clubs with the youngest Squad -------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotClubsWithYoungstPlayers <- function(df)
+  {
+    df %>%
+      group_by(club)%>%
+        summarise(club_age_average = round(sum(age)/length(age),digits = 2))%>%
+          arrange(club_age_average)%>%
+            head(10)%>%
+    
+    ggplot(aes(y = fct_reorder(as.factor(club),club_age_average), x = club_age_average, label = club_age_average))+
+    geom_bar(stat = "identity", fill = "turquoise4")+
+    geom_text(inherit.aes = T, nudge_y = 0.5)+
+    xlab("Club")+
+    theme(axis.text.x = element_text(angle = 90))+
+    ylab("Average Squad Age")+
+    labs(title = paste("Fifa",df$season,"Clubs with the youngest Squad")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Dominant Nationalitites in Fifa --------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotDominantNationalities <-function(df)
+  {
+    df %>%
+     group_by(nationality)%>%
+       summarise(players_count = n()) %>%
+         arrange(-players_count) %>%
+           head(10) %>%
+
+  ggplot(aes(x = fct_reorder(as.factor(nationality),players_count), y = players_count, label = players_count))+
+  geom_bar(stat = "identity", fill = "turquoise4")+
+  geom_text(inherit.aes = T, nudge_y = 0.5)+
+  xlab("Number of Players")+
+  theme(axis.text.x = element_text(angle = 90))+
+  ylab("Nationality")+
+  labs(title = paste("Fifa",df$season,"Dominant Nationalitites")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+  }
+
+
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Nationalities with highest overall --------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotNationlaitiesWithHighestOverall <- function(df)
+  {
+    nationality_filter <- df %>%
+                            group_by(nationality)%>%
+                              summarise(players_count = n()) %>%
+                                arrange(-players_count) %>%
+                                  head(68)
+
+    
+    # df %>%
+    #   subset(players_count_per_nationality > 50)
+    #   group_by(nationality)%>%
+    #       summarise(nationality_overall_average = round(sum(overall)/length(overall),digits = 2))%>%
+    #         arrange(-nationality_overall_average)%>%
+    #           head(10)%>%
+    
+    # ggplot(aes(y = fct_reorder(as.factor(nationality),nationality_overall_average), x = nationality_overall_average, label = nationality_overall_average))+
+    # geom_bar(stat = "identity", fill = "turquoise4")+
+    # geom_text(inherit.aes = T, nudge_y = 0.5)+
+    # xlab("Nationality")+
+    # theme(axis.text.x = element_text(angle = 90))+
+    # ylab("Average Natinality Overall")+
+    # labs(title = paste("Fifa",df$season,"Nationalities with highest overall")) +
+    # theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Clubs with highest number of players ------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotClubsWithHighestPlayerCount <- function(df)
+  {
+    df %>%
+        group_by(club)%>%
+            summarise(players_count = n())%>%
+              arrange(-players_count)%>%
+                head(10)%>%
+  ggplot(aes(x = as.factor(club) %>%
+               fct_reorder(players_count), y = players_count, label = players_count))+
+  geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+  geom_bar(stat = "identity", fill = "palegreen2")+
+  coord_flip()+
+  xlab("Club")+
+  ylab( "Number of players") +
+  labs(title =  paste("Fifa",df$season,"Number of players per top 10 clubs")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Clubs with highest number of left foot players --------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotClubsWithHighestLeftFootPlayers <-function(df)
+  {
+    df %>%
+        group_by(club)%>%
+          filter(preferred_foot=="Left")%>%
+            summarise(players_count = n())%>%
+              arrange(-players_count)%>%
+                head(10)%>%
+  ggplot(aes(x = as.factor(club) %>%
+               fct_reorder(players_count), y = players_count, label = players_count))+
+  geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+  geom_bar(stat = "identity", fill = "palegreen2")+
+  coord_flip()+
+  xlab("Club")+
+  ylab( "Number of Left Foot PLayers") +
+  labs(title =  paste("Fifa",df$season,"Number of left foot players per top 10 clubs")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Best free kick takers in the game ---------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotBestFreeKickTakers <- function(df)
+  {
+    df %>%
+      arrange(-skill_fk_accuracy, -skill_curve)%>%
+        select(short_name,club,skill_fk_accuracy,skill_curve)%>%
+          head(10) %>%
+    
+    ggplot(aes(x = club, y = skill_fk_accuracy))+
+    geom_point(aes(size = skill_curve), color = "violetred1")+
+    geom_text(inherit.aes = T, nudge_y = 0.5, aes(label = short_name))+
+    xlab("Club")+
+    ylab("Free Kick Accuracy")+
+    labs(title = paste("Fifa",df$season,"Clubs with best free-kick takers")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Evaluating BMI to find most unfit players  ------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotFittestPlayers <- function(df)
+  {
+    df%>%
+        mutate(BMI = (weight_kg*0.453592/(height_cm)^2))%>%
+          arrange(-BMI)%>%
+            select(Name, BMI)%>%
+              head(10)
+  }
+
+PlotValuableTeams(f16)
+PlotWageBills(f16)
+
+PlotValuableTeams(f20)
+PlotWageBills(f20)
+
+PlotSuperStars(f16)
+PlotSuperStars(f20)
+
+PlotAgesForTopValuedClubs(f16)
+PlotAgesForTopValuedClubs(f20)
+
+PlotClubsWithYoungstPlayers(f16)
+PlotClubsWithYoungstPlayers(f20)
+
+f20[f20$nationality== "Mozambique","overall"]
+p10 <- PlotNationlaitiesWithHighestOverall(f20)
+
+PlotClubsWithHighestPlayerCount(f16)
+PlotClubsWithHighestPlayerCount(f17)
+PlotClubsWithHighestPlayerCount(f18)
+PlotClubsWithHighestPlayerCount(f19)
+PlotClubsWithHighestPlayerCount(f20)
+
+PlotClubsWithHighestLeftFootPlayers(f16)
+PlotClubsWithHighestLeftFootPlayers(f20)
+
+PlotBestFreeKickTakers(f16)
+PlotBestFreeKickTakers(f20)
+
+PlotDominantNationalities(f16)
