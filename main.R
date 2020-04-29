@@ -56,6 +56,15 @@ f17 <- addPositionColumn(f17)
 f18 <- addPositionColumn(f18)
 f19 <- addPositionColumn(f19)
 f20 <- addPositionColumn(f20)
+
+####################################################################
+# Logistic Regression For Defense:
+logisticRegression_Position(f16)
+logisticRegression_Position(f17)
+logisticRegression_Position(f18)
+logisticRegression_Position(f19)
+logisticRegression_Position(f20)
+
 ####################################################################
 #Age Statistics:
 
@@ -182,59 +191,6 @@ plotTopClubValue(f17)
 plotTopClubValue(f18)
 plotTopClubValue(f19)
 plotTopClubValue(f20)
-
-#####################################################################
-# Predict Position based on attributes:
-
-tempTest <- removeGKColumns(f20)
-
-x <- as.factor(tempTest$Position)
-levels(x) <- list(DEF = c("DEF"), 
-                  ATT = c("FWD","MID"))
-tempTest <- mutate(tempTest, factor = x)
-
-tempTest <- tempTest[,!(names(tempTest) %in% c("Position"))]
-
-testSet <- tempTest[1:1000,]
-tempTest <- tempTest[1000:16242,]
-
-as.factor(tempTest$factor)
-as.factor(testSet$factor)
-
-mylogit <- glm(factor~.,data =tempTest, family=binomial(link="logit"),
-               na.action=na.omit)
-
-step(mylogit, direction = "backward")
-
-mylogit <- glm(factor ~ weight_kg + weak_foot + skill_moves + 
-                 pace + shooting + passing + dribbling + defending + physic, 
-               family = binomial(link = "logit"), data = tempTest, na.action = na.omit)
-
-summary(mylogit)
-pred = predict(mylogit,newdata = testSet, type="response")
-pred = round(pred)
-pred
-
-table(pred)
-testSet$factor <- as.numeric(as.factor(testSet$factor)) - 1
-table(testSet$factor)
-
-
-# Area Under Curve:
-predObj = prediction(pred, testSet$factor)
-rocObj = performance(predObj, measure="tpr", x.measure="fpr")
-aucObj = performance(predObj, measure="auc")
-auc = aucObj@y.values[[1]]
-auc
-plot(rocObj, main = paste("Area under the curve:", auc))
-
-
-cfmLR = confusionMatrix(
-  factor(pred, levels = 0:1),
-  factor(testSet$factor, levels = 0:1)
-)
-
-cfmLR
 
 ############################################################################
 # Predict using SVM:

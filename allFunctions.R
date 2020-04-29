@@ -429,3 +429,55 @@ plotMessiVsCristiano <- function(){
 }
 
 
+logisticRegression_Position <- function(df){
+  
+  
+  tempTest <- removeGKColumns(df)
+  
+  x <- as.factor(tempTest$Position)
+  levels(x) <- list(DEF = c("DEF"), 
+                    ATT = c("FWD","MID"))
+  tempTest <- mutate(tempTest, factor = x)
+  
+  tempTest <- tempTest[,!(names(tempTest) %in% c("Position"))]
+  
+  testSet <- tempTest[1:1000,]
+  tempTest <- tempTest[1000:16242,]
+  
+  as.factor(tempTest$factor)
+  as.factor(testSet$factor)
+  
+  mylogit <- glm(factor ~ weight_kg + weak_foot + skill_moves + 
+                   pace + shooting + passing + dribbling + defending + physic, 
+                 family = binomial(link = "logit"), data = tempTest, na.action = na.omit)
+  
+  summary(mylogit)
+  pred = predict(mylogit,newdata = testSet, type="response")
+  pred = round(pred)
+  pred
+  
+  table(pred)
+  testSet$factor <- as.numeric(as.factor(testSet$factor)) - 1
+  table(testSet$factor)
+  
+  
+  # Area Under Curve:
+  predObj = prediction(pred, testSet$factor)
+  rocObj = performance(predObj, measure="tpr", x.measure="fpr")
+  aucObj = performance(predObj, measure="auc")
+  auc = aucObj@y.values[[1]]
+  auc
+  plot(rocObj, main = paste("Area under the curve:", auc))
+  
+  
+  cfmLR = confusionMatrix(
+    factor(pred, levels = 0:1),
+    factor(testSet$factor, levels = 0:1)
+  )
+  
+  return(cfmLR)
+  
+  
+  
+}
+
