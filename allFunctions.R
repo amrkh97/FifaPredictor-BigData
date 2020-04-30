@@ -17,6 +17,13 @@ library(rworldmap)
 library(ggplot2)
 library(reshape2)
 
+require(ggpubr)
+require(nnet)
+require(forcats)
+require(rvest)
+require(xml2)
+library(leaflet)
+library(ggimage)
 library(class)
 library(tidyr)
 library(sf)
@@ -199,7 +206,7 @@ helperFun <- function(column){
 
 handleNonNumericAttributes <- function(df){
   
-  df[34:92] <- apply(df[34:92],MARGIN = 2 ,helperFun)
+  df[34:92] <- apply(df[34:92],MARGIN = c(1,2) ,helperFun)
   return(df)
 }
 

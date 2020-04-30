@@ -8,25 +8,6 @@ getwd()
 source("allFunctions.R")
 
 
-require(randomForest)
-require(caret)
-require(e1071)
-require(ROCR)
-require(stringi)
-require(dplyr)
-require(gridExtra)
-require(rworldmap)
-require(ggplot2)
-require(reshape2)
-require(ggpubr)
-require(nnet)
-require(forcats)
-require(rvest)
-require(xml2)
-library(leaflet)
-library(ggimage)
-
-
 
 # Read datasets
 f16_complete <- read.csv("Dataset/players_16.csv")
@@ -72,28 +53,6 @@ f17 <- handleNonNumericAttributes(f17)
 f18 <- handleNonNumericAttributes(f18)
 f19 <- handleNonNumericAttributes(f19)
 f20 <- handleNonNumericAttributes(f20)
-
-####################################################################
-#re add short_name, sofifa_id
-f16 <- cbind(short_name = f16_complete$short_name,f16)
-f16 <- cbind(sofifa_id = f16_complete$sofifa_id,f16)
-f17 <- cbind(short_name = f17_complete$short_name,f17)
-f17 <- cbind(sofifa_id = f17_complete$sofifa_id,f17)
-f18 <- cbind(short_name = f18_complete$short_name,f18)
-f18 <- cbind(sofifa_id = f18_complete$sofifa_id,f18)
-f19 <- cbind(short_name = f19_complete$short_name,f19)
-f19 <- cbind(sofifa_id = f19_complete$sofifa_id,f19)
-f20 <- cbind(short_name = f20_complete$short_name,f20)
-f20 <- cbind(sofifa_id = f20_complete$sofifa_id,f20)
-
-
-####################################################################
-#add season columns
-f16 <- cbind(season = 16,f16)
-f17 <- cbind(season = 17,f17)
-f18 <- cbind(season = 18,f18)
-f19 <- cbind(season = 19,f19)
-f20 <- cbind(season = 20,f20)
 
 ####################################################################
 # Factorise player positions:
@@ -278,7 +237,61 @@ plotCorrelationHeatMap(f18)
 plotCorrelationHeatMap(f19)
 plotCorrelationHeatMap(f20)
 
+
+
 ############################################################################
+# Best Team In Each Year:
+
+# FIFA 20:
+plotBest442("20")
+plotBest352("20")
+plotBest433("20")
+
+F20_442 <- getBestTeamForFormation("20", "4-4-2")
+F20_352 <- getBestTeamForFormation("20", "3-5-2")
+F20_433 <- getBestTeamForFormation("20", "4-3-3")
+
+bestTeams20 <- list(F20_442, F20_352, F20_433)
+bestTeams20[getBestTeamByOverall(F20_442, F20_352, F20_433)]
+
+# FIFA 19:
+plotBest442("19")
+plotBest352("19")
+plotBest433("19")
+
+F19_442 <- getBestTeamForFormation("19", "4-4-2")
+F19_352 <- getBestTeamForFormation("19", "3-5-2")
+F19_433 <- getBestTeamForFormation("19", "4-3-3")
+
+bestTeams19 <- list(F19_442, F19_352, F19_433)
+bestTeams19[getBestTeamByOverall(F19_442, F19_352, F19_433)]
+
+# FIFA 18:
+plotBest442("18")
+plotBest352("18")
+plotBest433("18")
+
+F18_442 <- getBestTeamForFormation("18", "4-4-2")
+F18_352 <- getBestTeamForFormation("18", "3-5-2")
+F18_433 <- getBestTeamForFormation("18", "4-3-3")
+
+bestTeams18 <- list(F18_442, F18_352, F18_433)
+bestTeams18[getBestTeamByOverall(F18_442, F18_352, F18_433)]
+
+# It can be observed that teams with messi and cristiano are always the best formation:
+# F20 Team is better than that of other years:
+getBestTeamByOverall(F20_433, F19_433, F18_433)
+
+########################################################
+# Lionel Messi VS Cristiano Ronaldo:
+
+plotMessiVsCristiano()
+
+
+
+###########################################################################
+###########################################################################
+###########################################################################
 #-------------------------------------- General Functions----------------------------------------------------------
 Plot <- function (df, x_axis, y_axis, g = FALSE, c = NULL)
   {
@@ -376,7 +389,31 @@ creatingCellsForMatrix <- function (fifa_without_GK_vector)
     }
   }
   return(cells)
-  }
+}
+
+
+####################################################################
+#re add short_name, sofifa_id
+f16 <- cbind(short_name = f16_complete$short_name,f16)
+f16 <- cbind(sofifa_id = f16_complete$sofifa_id,f16)
+f17 <- cbind(short_name = f17_complete$short_name,f17)
+f17 <- cbind(sofifa_id = f17_complete$sofifa_id,f17)
+f18 <- cbind(short_name = f18_complete$short_name,f18)
+f18 <- cbind(sofifa_id = f18_complete$sofifa_id,f18)
+f19 <- cbind(short_name = f19_complete$short_name,f19)
+f19 <- cbind(sofifa_id = f19_complete$sofifa_id,f19)
+f20 <- cbind(short_name = f20_complete$short_name,f20)
+f20 <- cbind(sofifa_id = f20_complete$sofifa_id,f20)
+
+
+####################################################################
+#add season columns
+f16 <- cbind(season = 16,f16)
+f17 <- cbind(season = 17,f17)
+f18 <- cbind(season = 18,f18)
+f19 <- cbind(season = 19,f19)
+f20 <- cbind(season = 20,f20)
+
 
 # removing all goal keapers rows as they have an NA in the driblling cloumns
 f16_without_GK <- removeGoalKeapers(f16)
@@ -397,6 +434,8 @@ cor(f16_without_GK$height_cm , f16_without_GK$skill_dribbling)
 cor(f17_without_GK$height_cm , f17_without_GK$skill_dribbling)
 cor(f18_without_GK$height_cm , f18_without_GK$skill_dribbling)
 cor(f19_without_GK$height_cm , f19_without_GK$skill_dribbling)
+
+
 cor(f20_without_GK$height_cm , f20_without_GK$skill_dribbling)
 
 # rows names and columns names for creating the matrix of average dribbling value per each height level for each fifa season
@@ -500,56 +539,6 @@ wage_model <- lm (wage_eur ~ age +  height_cm  +  weight_kg  + overall  +
                   mentality_interceptions  +  mentality_positioning  +  
                   mentality_vision  + mentality_penalties  +  defending_marking  +  
                   defending_standing_tackle  + defending_sliding_tackle, data = training)
-
-############################################################################
-# Best Team In Each Year:
-
-# FIFA 20:
-plotBest442("20")
-plotBest352("20")
-plotBest433("20")
-
-F20_442 <- getBestTeamForFormation("20", "4-4-2")
-F20_352 <- getBestTeamForFormation("20", "3-5-2")
-F20_433 <- getBestTeamForFormation("20", "4-3-3")
-
-bestTeams20 <- list(F20_442, F20_352, F20_433)
-bestTeams20[getBestTeamByOverall(F20_442, F20_352, F20_433)]
-
-# FIFA 19:
-plotBest442("19")
-plotBest352("19")
-plotBest433("19")
-
-F19_442 <- getBestTeamForFormation("19", "4-4-2")
-F19_352 <- getBestTeamForFormation("19", "3-5-2")
-F19_433 <- getBestTeamForFormation("19", "4-3-3")
-
-bestTeams19 <- list(F19_442, F19_352, F19_433)
-bestTeams19[getBestTeamByOverall(F19_442, F19_352, F19_433)]
-
-# FIFA 18:
-plotBest442("18")
-plotBest352("18")
-plotBest433("18")
-
-F18_442 <- getBestTeamForFormation("18", "4-4-2")
-F18_352 <- getBestTeamForFormation("18", "3-5-2")
-F18_433 <- getBestTeamForFormation("18", "4-3-3")
-
-bestTeams18 <- list(F18_442, F18_352, F18_433)
-bestTeams18[getBestTeamByOverall(F18_442, F18_352, F18_433)]
-
-# It can be observed that teams with messi and cristiano are always the best formation:
-# F20 Team is better than that of other years:
-getBestTeamByOverall(F20_433, F19_433, F18_433)
-
-########################################################
-# Lionel Messi VS Cristiano Ronaldo:
-
-plotMessiVsCristiano()
-
-
 
 summary(wage_model)
 # predict the same data
