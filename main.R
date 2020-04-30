@@ -1149,7 +1149,8 @@ PlotBestFreeKickTakers <- function(df)
         select(short_name,club,skill_fk_accuracy,skill_curve)%>%
           head(10) %>%
     
-    ggplot(aes(x = club, y = skill_fk_accuracy))+
+    ggplot(aes(x = as.factor(club) %>%
+                 fct_reorder(skill_fk_accuracy), y = skill_fk_accuracy))+
     geom_point(aes(size = skill_curve), color = "violetred1")+
     geom_text(inherit.aes = T, nudge_y = 0.5, aes(label = short_name))+
     geom_image(aes(image = df$image_url))
