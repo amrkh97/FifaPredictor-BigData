@@ -891,7 +891,7 @@ PlotValuableTeams <- function(df)
     ggplot(aes(
                 x = fct_reorder(as.factor(club),club.squad.value), y = club.squad.value, label = club.squad.value))+
       geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
-      geom_bar(stat = "identity", fill = "violetred1")+
+      geom_bar(stat = "identity", fill = "violetred1",alpha=.6, width=.4)+
       coord_flip()+
       xlab("Club")+
       ylab("Squad Value in Million")+
@@ -917,7 +917,7 @@ PlotWageBills <- function(df)
     ggplot(aes(
                 x = fct_reorder(as.factor(club),total_wage), y = total_wage, label = total_wage))+
       geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
-      geom_bar(stat = "identity", fill = "violetred1")+
+      geom_bar(stat = "identity", fill = "violetred1",alpha=.6, width=.4)+
       coord_flip()+
       xlab("Club")+
       ylab( "Squad Wages in Million")+
@@ -943,7 +943,7 @@ PlotSuperStars <- function (df)
               arrange(-players_count)%>%
   ggplot(aes(x = as.factor(club) %>%
                fct_reorder(players_count), y = players_count, label = players_count))+
-  geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+  geom_text(hjust = 0.01,inherit.aes = T, position = "identity",alpha=.6, width=.4)+
   geom_bar(stat = "identity", fill = "palegreen2")+
   coord_flip()+
   xlab("Club")+
@@ -996,7 +996,7 @@ PlotClubsWithYoungstPlayers <- function(df)
             head(10)%>%
     
     ggplot(aes(y = fct_reorder(as.factor(club),club_age_average), x = club_age_average, label = club_age_average))+
-    geom_bar(stat = "identity", fill = "turquoise4")+
+    geom_bar(stat = "identity", fill = "turquoise4",alpha=.6, width=.4)+
     geom_text(inherit.aes = T, nudge_y = 0.5)+
     xlab("Club")+
     theme(axis.text.x = element_text(angle = 90))+
@@ -1020,8 +1020,8 @@ PlotDominantNationalities <-function(df)
          arrange(-players_count) %>%
            head(10) %>%
 
-  ggplot(aes(x = fct_reorder(as.factor(nationality),players_count), y = players_count, label = players_count))+
-  geom_bar(stat = "identity", fill = "turquoise4")+
+  ggplot(aes(y = fct_reorder(as.factor(nationality),players_count), x = players_count, label = players_count))+
+  geom_bar(stat = "identity", fill = "turquoise4",alpha=.6, width=.4)+
   geom_text(inherit.aes = T, nudge_y = 0.5)+
   xlab("Number of Players")+
   theme(axis.text.x = element_text(angle = 90))+
@@ -1047,24 +1047,24 @@ PlotNationlaitiesWithHighestOverall <- function(df)
                             group_by(nationality)%>%
                               summarise(players_count = n()) %>%
                                 arrange(-players_count) %>%
-                                  head(68)
+                                  head(30)
 
+    df[df$nationality %in% nationality_filter$nationality,] %>%
+      group_by(nationality)%>%
+          summarise(nationality_overall_average = round(sum(overall)/length(overall),digits = 2))%>%
+            arrange(-nationality_overall_average)%>%
+              head(10)%>%
     
-    # df %>%
-    #   subset(players_count_per_nationality > 50)
-    #   group_by(nationality)%>%
-    #       summarise(nationality_overall_average = round(sum(overall)/length(overall),digits = 2))%>%
-    #         arrange(-nationality_overall_average)%>%
-    #           head(10)%>%
-    
-    # ggplot(aes(y = fct_reorder(as.factor(nationality),nationality_overall_average), x = nationality_overall_average, label = nationality_overall_average))+
-    # geom_bar(stat = "identity", fill = "turquoise4")+
-    # geom_text(inherit.aes = T, nudge_y = 0.5)+
-    # xlab("Nationality")+
-    # theme(axis.text.x = element_text(angle = 90))+
-    # ylab("Average Natinality Overall")+
-    # labs(title = paste("Fifa",df$season,"Nationalities with highest overall")) +
-    # theme(plot.title = element_text(hjust = 0.5, size = 14))
+    ggplot(aes(x = fct_reorder(as.factor(nationality),nationality_overall_average), y = nationality_overall_average, label = nationality_overall_average))+
+    geom_bar(stat = "identity", fill="#f68060", alpha=.6, width=.4)+
+    geom_text(inherit.aes = T, nudge_y = 0.8)+
+    xlab("Nationality")+
+    coord_flip()+
+    theme(axis.text.x = element_text(angle = 90))+
+    ylab("Average Natinality Overall")+
+    labs(title = paste("Fifa",df$season,"Nationalities with highest overall")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))+
+    theme_bw()
   }
 
 #------------------------------------------------------------------------------------------------------------------
@@ -1083,9 +1083,11 @@ PlotClubsWithHighestPlayerCount <- function(df)
               arrange(-players_count)%>%
                 head(10)%>%
   ggplot(aes(x = as.factor(club) %>%
-               fct_reorder(players_count), y = players_count, label = players_count))+
+               fct_reorder(players_count), y = players_count, label = players_count,
+               fill = factor(ifelse(club=="Arsenal","Arsenal","Others"))))+
   geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
-  geom_bar(stat = "identity", fill = "palegreen2")+
+  geom_bar(stat = "identity", alpha=.6, width=.4)+
+  scale_fill_manual(name = "club", values=c("red","palegreen2"))+
   coord_flip()+
   xlab("Club")+
   ylab( "Number of players") +
@@ -1112,7 +1114,7 @@ PlotClubsWithHighestLeftFootPlayers <-function(df)
   ggplot(aes(x = as.factor(club) %>%
                fct_reorder(players_count), y = players_count, label = players_count))+
   geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
-  geom_bar(stat = "identity", fill = "palegreen2")+
+  geom_bar(stat = "identity", fill = "palegreen2",alpha=.6, width=.4)+
   coord_flip()+
   xlab("Club")+
   ylab( "Number of Left Foot PLayers") +
@@ -1142,22 +1144,8 @@ PlotBestFreeKickTakers <- function(df)
     labs(title = paste("Fifa",df$season,"Clubs with best free-kick takers")) +
     theme(plot.title = element_text(hjust = 0.5, size = 14))
   }
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Evaluating BMI to find most unfit players  ------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
 
-PlotFittestPlayers <- function(df)
-  {
-    df%>%
-        mutate(BMI = (weight_kg*0.453592/(height_cm)^2))%>%
-          arrange(-BMI)%>%
-            select(Name, BMI)%>%
-              head(10)
-  }
+
 
 PlotValuableTeams(f16)
 PlotWageBills(f16)
@@ -1174,8 +1162,8 @@ PlotAgesForTopValuedClubs(f20)
 PlotClubsWithYoungstPlayers(f16)
 PlotClubsWithYoungstPlayers(f20)
 
-f20[f20$nationality== "Mozambique","overall"]
-p10 <- PlotNationlaitiesWithHighestOverall(f20)
+
+PlotNationlaitiesWithHighestOverall(f20)
 
 PlotClubsWithHighestPlayerCount(f16)
 PlotClubsWithHighestPlayerCount(f17)
@@ -1190,3 +1178,4 @@ PlotBestFreeKickTakers(f16)
 PlotBestFreeKickTakers(f20)
 
 PlotDominantNationalities(f16)
+
