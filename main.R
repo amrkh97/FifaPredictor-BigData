@@ -6,7 +6,7 @@ rm(list=ls())
 getwd()
 
 #install.packages(c("dplyr","gridExtra","rworldmap",
-#                   "randomForest","reshape2","stringi","ggpubr", "nnet" , "forcats","leaflet"))
+#                   "randomForest","reshape2","stringi","ggpubr", "nnet" , "forcats", "rvest", "xml2", "leaflet"))
 
 
 require(randomForest)
@@ -22,8 +22,9 @@ require(reshape2)
 require(ggpubr)
 require(nnet)
 require(forcats)
-require(leaflet)
-
+require(rvest)
+require(xml2)
+library(leaflet)
 
 
 
@@ -40,7 +41,7 @@ f20_complete <- read.csv("Dataset/players_20.csv")
 
 # Abdelgawad will need the short name
 unnecessaryColumns <- c("sofifa_id","player_url","dob",
-                        "relaease_clause_eur","real_face","nation_position",
+                        "release_clause_eur","real_face","nation_position",
                         "nation_jersey_number","mentality_composure","loaned_from",
                         "team_position","team_jersey_number","joined","contact_valid_until")
 
@@ -50,13 +51,13 @@ f17 <- f17_complete[,!(names(f17_complete) %in% unnecessaryColumns)]
 f18 <- f18_complete[,!(names(f18_complete) %in% unnecessaryColumns)]
 f19 <- f19_complete[,!(names(f19_complete) %in% unnecessaryColumns)]
 f20 <- f20_complete[,!(names(f20_complete) %in% unnecessaryColumns)]
-
 # Get top 5 leagues
 top5leagues <- c("Arsenal","Manchester United","Manchester City","Liverpool","Tottenham Hotspur","Chelsea",
                  "FC Barcelona","AtlÃ©tico Madrid","Real Madrid","AtlÃ©tico Madrid","Sevilla","Valencia CF",
                  "Napoli","Juventus","Inter","Lazio","Milan","Atalanta","Roma",
                  "Borussia Dortmund","FC Bayern MÃ¼nchen","RB Leipzig","Bayer 04 Leverkusen","Borussia MÃ¶nchengladbach","FC Schalke 04",
                  "Paris Saint-Germain","Olympique Lyonnais","LOSC Lille","Stade Rennais FC","AS Monaco")
+
 # WILL BE USED LATER
 # Keep top 5 leagues only
 #top2016 <- f16[f16$club %in% top5leagues,]
@@ -64,6 +65,7 @@ top5leagues <- c("Arsenal","Manchester United","Manchester City","Liverpool","To
 #top2018 <- f18[f18$club %in% top5leagues,]
 #top2019 <- f19[f19$club %in% top5leagues,]
 #top2020 <- f20[f20$club %in% top5leagues,]
+colnames(f16)
 
 ########################################################################
 # Function Definitions:
@@ -234,7 +236,7 @@ helperFun <- function(column){
 
 handleNonNumericAttributes <- function(df){
   
-  df[35:93] <- apply(df[34:92],MARGIN = 2 ,helperFun)
+  df[35:93] <- apply(df[35:93],MARGIN = 2 ,helperFun)
   return(df)
 }
 
@@ -390,6 +392,7 @@ plotTopClubValue(f18)
 plotTopClubValue(f19)
 plotTopClubValue(f20)
 
+
 #####################################################################
 # Predict Position based on attributes:
 
@@ -493,11 +496,6 @@ Plot <- function (df, x_axis, y_axis, g = FALSE, c = NULL)
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 
-cor(f16$height_cm , f16$skill_dribbling)
-cor(f17$height_cm , f17$skill_dribbling)
-cor(f18$height_cm , f18$skill_dribbling)
-cor(f19$height_cm , f19$skill_dribbling)
-cor(f20$height_cm , f20$skill_dribbling)
 
 # there was no direct corelation between hight and dribbling
 # plotting a graph between height and dribbling for all the players was a total mess and did not indicate anything
@@ -579,12 +577,12 @@ f18_without_GK <- addHeightLevels(f18_without_GK)
 f19_without_GK <- addHeightLevels(f19_without_GK)
 f20_without_GK <- addHeightLevels(f20_without_GK)
 
-# add fifa season number attribute, will be needed in ploting the graphs to connect the point for each fifa season
-f16_without_GK <- cbind(season = 16,f16_without_GK)
-f17_without_GK <- cbind(season = 17,f17_without_GK)
-f18_without_GK <- cbind(season = 18,f18_without_GK)
-f19_without_GK <- cbind(season = 19,f19_without_GK)
-f20_without_GK <- cbind(season = 20,f20_without_GK)
+#correlation between height and dribbling
+cor(f16_without_GK$height_cm , f16_without_GK$skill_dribbling)
+cor(f17_without_GK$height_cm , f17_without_GK$skill_dribbling)
+cor(f18_without_GK$height_cm , f18_without_GK$skill_dribbling)
+cor(f19_without_GK$height_cm , f19_without_GK$skill_dribbling)
+cor(f20_without_GK$height_cm , f20_without_GK$skill_dribbling)
 
 # rows names and columns names for creating the matrix of average dribbling value per each height level for each fifa season
 rnames <- c("f16","f17","f18","f19","f20")
@@ -947,8 +945,8 @@ PlotSuperStars <- function (df)
               arrange(-players_count)%>%
   ggplot(aes(x = as.factor(club) %>%
                fct_reorder(players_count), y = players_count, label = players_count))+
-  geom_text(hjust = 0.01,inherit.aes = T, position = "identity",alpha=.6, width=.4)+
-  geom_bar(stat = "identity", fill = "palegreen2")+
+  geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+  geom_bar(stat = "identity", fill = "palegreen2",alpha=.6, width=.4)+
   coord_flip()+
   xlab("Club")+
   ylab( "Number of Superstars") +
@@ -1149,7 +1147,47 @@ PlotBestFreeKickTakers <- function(df)
     theme(plot.title = element_text(hjust = 0.5, size = 14))
   }
 
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Extract player image using webpage (too slow fashkh) --------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+AddImageColumnByWeb <- function(df)
+  {
+    players_URLs_list <- as.character(df$player_url)
+    image_data_list <- lapply(players_URLs_list, function(x)
+      {
+        webpage <- read_html(x)
+        webpage %>%
+          html_nodes(xpath = "/html/body/div[2]/div/div/div[1]/div/div[1]/div/img") %>%
+          html_attr("data-src")
+      })
+  }
 
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Extract player image using soffia_id (too slow fashkh) ------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+AddImageColumn <-function(df)
+  {
+    # extract players images
+    players_id <- df$sofifa_id
+    players_id <- formatC(players_id, format = "d", digits = 5, flag = "0")
+    players_id <- as.data.frame(players_id)
+
+    image_url <- rep("https://cdn.sofifa.com/players/",NROW(players_id))
+    image_url <- as.data.frame(image_url)
+
+    image_url$image_url <- paste(image_url$image_url,substr(players_id$players_id,1,3),"/",
+              substr(players_id$players_id,4,6),"/",as.character(df$season[1]),"_120.png",sep ="")
+    return(mutate(df, image_url = image_url$image_url))
+
+  }
 
 PlotValuableTeams(f16)
 PlotWageBills(f16)
@@ -1179,7 +1217,10 @@ PlotClubsWithHighestLeftFootPlayers(f16)
 PlotClubsWithHighestLeftFootPlayers(f20)
 
 PlotBestFreeKickTakers(f16)
+PlotBestFreeKickTakers(f19)
 PlotBestFreeKickTakers(f20)
 
 PlotDominantNationalities(f16)
+
+
 
