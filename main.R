@@ -6,7 +6,7 @@ rm(list=ls())
 getwd()
 
 #install.packages(c("dplyr","gridExtra","rworldmap",
-#                   "randomForest","reshape2","stringi","ggpubr", "nnet" , "forcats"))
+#                   "randomForest","reshape2","stringi","ggpubr", "nnet" , "forcats","leaflet"))
 
 
 require(randomForest)
@@ -22,7 +22,9 @@ require(reshape2)
 require(ggpubr)
 require(nnet)
 require(forcats)
-theme_set(theme_pubr())
+require(leaflet)
+
+
 
 
 # Read datasets
@@ -32,12 +34,7 @@ f18_complete <- read.csv("Dataset/players_18.csv")
 f19_complete <- read.csv("Dataset/players_19.csv")
 f20_complete <- read.csv("Dataset/players_20.csv")
 
-#add season columns
-f16_complete <- cbind(season = 16,f16_complete)
-f17_complete <- cbind(season = 17,f17_complete)
-f18_complete <- cbind(season = 18,f18_complete)
-f19_complete <- cbind(season = 19,f19_complete)
-f20_complete <- cbind(season = 20,f20_complete)
+
 
 # Get unnecessary columns
 
@@ -60,7 +57,6 @@ top5leagues <- c("Arsenal","Manchester United","Manchester City","Liverpool","To
                  "Napoli","Juventus","Inter","Lazio","Milan","Atalanta","Roma",
                  "Borussia Dortmund","FC Bayern MÃ¼nchen","RB Leipzig","Bayer 04 Leverkusen","Borussia MÃ¶nchengladbach","FC Schalke 04",
                  "Paris Saint-Germain","Olympique Lyonnais","LOSC Lille","Stade Rennais FC","AS Monaco")
-
 # WILL BE USED LATER
 # Keep top 5 leagues only
 #top2016 <- f16[f16$club %in% top5leagues,]
@@ -238,7 +234,7 @@ helperFun <- function(column){
 
 handleNonNumericAttributes <- function(df){
   
-  df[34:92] <- apply(df[34:92],MARGIN = 2 ,helperFun)
+  df[35:93] <- apply(df[34:92],MARGIN = 2 ,helperFun)
   return(df)
 }
 
@@ -250,6 +246,14 @@ f17 <- handleNonNumericAttributes(f17)
 f18 <- handleNonNumericAttributes(f18)
 f19 <- handleNonNumericAttributes(f19)
 f20 <- handleNonNumericAttributes(f20)
+
+####################################################################
+#add season columns
+f16 <- cbind(season = 16,f16)
+f17 <- cbind(season = 17,f17)
+f18 <- cbind(season = 18,f18)
+f19 <- cbind(season = 19,f19)
+f20 <- cbind(season = 20,f20)
 
 ####################################################################
 # Factorise player positions:
