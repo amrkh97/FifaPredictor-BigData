@@ -40,8 +40,8 @@ f20_complete <- read.csv("Dataset/players_20.csv")
 # Get unnecessary columns
 
 # Abdelgawad will need the short name
-unnecessaryColumns <- c("sofifa_id","player_url","dob",
-                        "release_clause_eur","real_face","nation_position",
+unnecessaryColumns <- c("short_name","sofifa_id","player_url","dob",
+                        "real_face","nation_position",
                         "nation_jersey_number","mentality_composure","loaned_from",
                         "team_position","team_jersey_number","joined","contact_valid_until")
 
@@ -65,8 +65,6 @@ top5leagues <- c("Arsenal","Manchester United","Manchester City","Liverpool","To
 #top2018 <- f18[f18$club %in% top5leagues,]
 #top2019 <- f19[f19$club %in% top5leagues,]
 #top2020 <- f20[f20$club %in% top5leagues,]
-colnames(f16)
-
 ########################################################################
 # Function Definitions:
 
@@ -236,7 +234,7 @@ helperFun <- function(column){
 
 handleNonNumericAttributes <- function(df){
   
-  df[35:93] <- apply(df[35:93],MARGIN = 2 ,helperFun)
+  df[34:92] <- apply(df[34:92],MARGIN = 2 ,helperFun)
   return(df)
 }
 
@@ -248,6 +246,20 @@ f17 <- handleNonNumericAttributes(f17)
 f18 <- handleNonNumericAttributes(f18)
 f19 <- handleNonNumericAttributes(f19)
 f20 <- handleNonNumericAttributes(f20)
+
+####################################################################
+#re add short_name, sofifa_id
+f16 <- cbind(f16,short_name = f16_complete$short_name)
+f16 <- cbind(f16,sofifa_id = f16_complete$sofifa_id)
+f17 <- cbind(f17,short_name = f17_complete$short_name)
+f17 <- cbind(f17,sofifa_id = f17_complete$sofifa_id)
+f18 <- cbind(f18,short_name = f18_complete$short_name)
+f18 <- cbind(f18,sofifa_id = f18_complete$sofifa_id)
+f19 <- cbind(f19,short_name = f19_complete$short_name)
+f19 <- cbind(f19,sofifa_id = f19_complete$sofifa_id)
+f20 <- cbind(f20,short_name = f20_complete$short_name)
+f20 <- cbind(f20,sofifa_id = f20_complete$sofifa_id)
+
 
 ####################################################################
 #add season columns
@@ -1216,7 +1228,7 @@ PlotClubsWithHighestPlayerCount(f20)
 PlotClubsWithHighestLeftFootPlayers(f16)
 PlotClubsWithHighestLeftFootPlayers(f20)
 
-PlotBestFreeKickTakers(f16)
+PlotBestFreeKickTakers(f16_complete)
 PlotBestFreeKickTakers(f19)
 PlotBestFreeKickTakers(f20)
 
