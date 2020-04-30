@@ -6,7 +6,7 @@ rm(list=ls())
 getwd()
 
 #install.packages(c("dplyr","gridExtra","rworldmap",
-#                   "randomForest","reshape2","stringi","ggpubr", "nnet" , "forcats", "rvest", "xml2", "leaflet"))
+#                   "randomForest","reshape2","stringi","ggpubr", "nnet" , "forcats", "rvest", "xml2", "leaflet", "ggimage"))
 
 
 require(randomForest)
@@ -25,6 +25,7 @@ require(forcats)
 require(rvest)
 require(xml2)
 library(leaflet)
+library(ggimage)
 
 
 
@@ -38,9 +39,7 @@ f20_complete <- read.csv("Dataset/players_20.csv")
 
 
 # Get unnecessary columns
-
-# Abdelgawad will need the short name
-unnecessaryColumns <- c("short_name","sofifa_id","player_url","dob",
+unnecessaryColumns <- c("sofifa_id","player_url","dob","short_name",
                         "real_face","nation_position",
                         "nation_jersey_number","mentality_composure","loaned_from",
                         "team_position","team_jersey_number","joined","contact_valid_until")
@@ -234,7 +233,7 @@ helperFun <- function(column){
 
 handleNonNumericAttributes <- function(df){
   
-  df[34:92] <- apply(df[34:92],MARGIN = 2 ,helperFun)
+  df[34:92] <- apply(df[34:92],MARGIN = c(1,2) ,helperFun)
   return(df)
 }
 
@@ -249,16 +248,16 @@ f20 <- handleNonNumericAttributes(f20)
 
 ####################################################################
 #re add short_name, sofifa_id
-f16 <- cbind(f16,short_name = f16_complete$short_name)
-f16 <- cbind(f16,sofifa_id = f16_complete$sofifa_id)
-f17 <- cbind(f17,short_name = f17_complete$short_name)
-f17 <- cbind(f17,sofifa_id = f17_complete$sofifa_id)
-f18 <- cbind(f18,short_name = f18_complete$short_name)
-f18 <- cbind(f18,sofifa_id = f18_complete$sofifa_id)
-f19 <- cbind(f19,short_name = f19_complete$short_name)
-f19 <- cbind(f19,sofifa_id = f19_complete$sofifa_id)
-f20 <- cbind(f20,short_name = f20_complete$short_name)
-f20 <- cbind(f20,sofifa_id = f20_complete$sofifa_id)
+f16 <- cbind(short_name = f16_complete$short_name,f16)
+f16 <- cbind(sofifa_id = f16_complete$sofifa_id,f16)
+f17 <- cbind(short_name = f17_complete$short_name,f17)
+f17 <- cbind(sofifa_id = f17_complete$sofifa_id,f17)
+f18 <- cbind(short_name = f18_complete$short_name,f18)
+f18 <- cbind(sofifa_id = f18_complete$sofifa_id,f18)
+f19 <- cbind(short_name = f19_complete$short_name,f19)
+f19 <- cbind(sofifa_id = f19_complete$sofifa_id,f19)
+f20 <- cbind(short_name = f20_complete$short_name,f20)
+f20 <- cbind(sofifa_id = f20_complete$sofifa_id,f20)
 
 
 ####################################################################
@@ -1153,6 +1152,7 @@ PlotBestFreeKickTakers <- function(df)
     ggplot(aes(x = club, y = skill_fk_accuracy))+
     geom_point(aes(size = skill_curve), color = "violetred1")+
     geom_text(inherit.aes = T, nudge_y = 0.5, aes(label = short_name))+
+    geom_image(aes(image = df$image_url))
     xlab("Club")+
     ylab("Free Kick Accuracy")+
     labs(title = paste("Fifa",df$season,"Clubs with best free-kick takers")) +
@@ -1201,6 +1201,15 @@ AddImageColumn <-function(df)
 
   }
 
+###############################################
+# add image column
+f16 <- AddImageColumn(f16)
+f17 <- AddImageColumn(f17)
+f18 <- AddImageColumn(f18)
+f19 <- AddImageColumn(f19)
+f20 <- AddImageColumn(f20)
+##################################################
+
 PlotValuableTeams(f16)
 PlotWageBills(f16)
 
@@ -1228,7 +1237,10 @@ PlotClubsWithHighestPlayerCount(f20)
 PlotClubsWithHighestLeftFootPlayers(f16)
 PlotClubsWithHighestLeftFootPlayers(f20)
 
-PlotBestFreeKickTakers(f16_complete)
+#############################doll ya 3amr
+PlotBestFreeKickTakers(f16)
+PlotBestFreeKickTakers(f17)
+PlotBestFreeKickTakers(f18)
 PlotBestFreeKickTakers(f19)
 PlotBestFreeKickTakers(f20)
 
