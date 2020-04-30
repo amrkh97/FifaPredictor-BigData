@@ -1149,8 +1149,6 @@ PlotBestFreeKickTakers <- function(df)
         select(short_name,club,skill_fk_accuracy,skill_curve,image_url)%>%
           head(10) %>%
     
-    
-    
     ggplot(aes(x = club, y = skill_fk_accuracy))+
     geom_point(aes(size = skill_curve), color = "violetred1")+
     geom_text(inherit.aes = T, nudge_y = 0.5, aes(label = short_name))+
@@ -1210,6 +1208,7 @@ f17 <- AddImageColumn(f17)
 f18 <- AddImageColumn(f18)
 f19 <- AddImageColumn(f19)
 f20 <- AddImageColumn(f20)
+f20[f20$sofifa_id == 251691, "image_url"] = "https://i.pinimg.com/564x/0d/36/e7/0d36e7a476b06333d9fe9960572b66b9.jpg"
 ##################################################
 
 PlotValuableTeams(f16)
