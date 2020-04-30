@@ -1151,12 +1151,14 @@ PlotBestFreeKickTakers <- function(df)
     
     ggplot(aes(x = club, y = skill_fk_accuracy))+
     geom_point(aes(size = skill_curve), color = "violetred1")+
-    geom_text(inherit.aes = T, nudge_y = 0.5, aes(label = short_name))+
-    geom_image(aes(image = image_url))+
+    geom_text(inherit.aes = T, nudge_y = -0.5, aes(label = short_name))+
+    geom_image(aes(image = image_url), nudge_y=0.5)+
     xlab("Club")+
     ylab("Free Kick Accuracy")+
     labs(title = paste("Fifa",df$season,"Clubs with best free-kick takers")) +
-    theme(plot.title = element_text(hjust = 0.5, size = 14))
+    theme(plot.title = element_text(hjust = 0.5, size = 14))+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+    ylim(85,97)
   }
 
 #------------------------------------------------------------------------------------------------------------------
