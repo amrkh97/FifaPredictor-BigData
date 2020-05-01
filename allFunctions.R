@@ -17,6 +17,7 @@ library(rworldmap)
 library(ggplot2)
 library(reshape2)
 
+require(purrr)
 require(ggpubr)
 require(nnet)
 require(forcats)
@@ -35,6 +36,7 @@ library(png)
 library(magrittr)
 library(ggpubr)
 library(ggimage)
+library(caTools)
 ########################################################################
 # Function Definitions:
 
@@ -104,7 +106,7 @@ plotValueAbove30M <- function(df){
 
 plotTopClubValue <- function(df){
   group_clubs <- group_by(df, club)
-  club_value <- summarise(group_clubs, total_val = sum(value_eur))
+  club_value <- dplyr::summarise(group_clubs, total_val = sum(value_eur))
   top_10_valuable_clubs <- top_n(club_value, 10, total_val)
   
   top_10_valuable_clubs$Club <-as.factor(top_10_valuable_clubs$club)
@@ -266,7 +268,7 @@ getWorldPlot <- function(df){
 best_team <- function(df, input){
   
   team <- tibble()
-  team_copy <- df %>% arrange(-overall)
+  team_copy <- df %>% dplyr::arrange(-overall)
   
   tac442 <- c("GK","RB", "LCB", "RCB", "LB", "RM", "CM", "CM", "LM", "ST", "ST")
   tac352 <- c("GK","CB", "LCB", "RCB", "LM", "CDM", "CAM", "CDM", "RM", "ST", "ST")
@@ -487,4 +489,608 @@ logisticRegression_Position <- function(df){
   
   
 }
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Finding the most valuable teams -----------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
 
+PlotValuableTeams <- function(df)
+{
+  #  fifa_grouped_by_club <- group_by(df,club)
+  #  fifa_grouped_by_club_summarized <- summarise(fifa_grouped_by_club, club.squad.value = round(sum(value_eur)/1000000))
+  #  fifa_grouped_by_club_summarized_arranged <- arrange(fifa_grouped_by_club_summarized,-club.squad.value)
+  #  fifa_grouped_by_club_summarized_arranged <- head(fifa_grouped_by_club_summarized_arranged,10)
+  df %>% group_by(club) %>%
+    dplyr::summarise(club.squad.value = round(sum(value_eur)/1000000)) %>%
+    dplyr::arrange(-club.squad.value) %>%
+    head(10) %>%
+    
+    ggplot(aes(
+      x = fct_reorder(as.factor(club),club.squad.value), y = club.squad.value, label = club.squad.value))+
+    geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+    geom_bar(stat = "identity", fill = "violetred1",alpha=.6, width=.4)+
+    coord_flip()+
+    xlab("Club")+
+    ylab("Squad Value in Million")+
+    labs(title = paste("Fifa",df$season ,"Most Valuable Teams")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+}
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Finding the Top Wage Bills teams ----------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotWageBills <- function(df)
+{
+  df %>% group_by(club) %>%
+    dplyr::summarise(total_wage = round(sum(wage_eur)/1000000 , digits = 2)) %>%
+    dplyr::arrange(-total_wage) %>%
+    head(10) %>%
+    
+    ggplot(aes(
+      x = fct_reorder(as.factor(club),total_wage), y = total_wage, label = total_wage))+
+    geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+    geom_bar(stat = "identity", fill = "violetred1",alpha=.6, width=.4)+
+    coord_flip()+
+    xlab("Club")+
+    ylab( "Squad Wages in Million")+
+    labs(title =  paste("Fifa",df$season ,"Top Wage Bills")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+}
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Finding count of Superstars in teams ------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotSuperStars <- function (df)
+{
+  df %>%
+    mutate(super_star = ifelse(overall> 86, "super star","non-super star"))%>%
+    group_by(club)%>%
+    filter(super_star=="super star")%>%
+    dplyr::summarise(players_count = n())%>%
+    dplyr::arrange(-players_count)%>%
+    ggplot(aes(x = as.factor(club) %>%
+                 fct_reorder(players_count), y = players_count, label = players_count))+
+    geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+    geom_bar(stat = "identity", fill = "palegreen2",alpha=.6, width=.4)+
+    coord_flip()+
+    xlab("Club")+
+    ylab( "Number of Superstars") +
+    labs(title =  paste("Fifa",df$season,"Number of Superstars per top 10 clubs")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+}
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Age Distribution among the Top Valued Clubs -----------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotAgesForTopValuedClubs <- function(df)
+{
+  most_valued_clubs <- df %>%
+    group_by(club)%>%
+    dplyr::summarise(club_squad_value = round(sum(value_eur)/1000000))%>%
+    dplyr::arrange(-club_squad_value)%>%
+    head(10)
+  
+  clubs_and_ages <- df[df$club %in% most_valued_clubs[[1]], c("club", "age")]
+  
+  ggplot(clubs_and_ages, aes(x = age, y = club, fill = club)) +
+    geom_violin(trim = F)+
+    geom_boxplot(width = 0.1)+
+    theme(axis.text.x = element_text(angle = 90), legend.position = "none")+
+    ylab("Age distribution amongst Clubs") +
+    labs(title = paste("Fifa",df$season,"Age Distribution among the Top Valued Clubs")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+}
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Clubs with the youngest Squad -------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotClubsWithYoungstPlayers <- function(df)
+{
+  df %>%
+    group_by(club)%>%
+    dplyr::summarise(club_age_average = round(sum(age)/length(age),digits = 2))%>%
+    dplyr::arrange(club_age_average)%>%
+    head(10)%>%
+    
+    ggplot(aes(y = fct_reorder(as.factor(club),club_age_average), x = club_age_average, label = club_age_average))+
+    geom_bar(stat = "identity", fill = "turquoise4",alpha=.6, width=.4)+
+    geom_text(inherit.aes = T, nudge_y = 0.5)+
+    xlab("Club")+
+    theme(axis.text.x = element_text(angle = 90))+
+    ylab("Average Squad Age")+
+    labs(title = paste("Fifa",df$season,"Clubs with the youngest Squad")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+}
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Dominant Nationalities in Fifa ------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotDominantNationalities <-function(df)
+{
+  df %>%
+    group_by(nationality)%>%
+    dplyr::summarise(players_count = n()) %>%
+    dplyr::arrange(-players_count) %>%
+    head(10) %>%
+    
+    ggplot(aes(y = fct_reorder(as.factor(nationality),players_count), x = players_count, label = players_count))+
+    geom_bar(stat = "identity", fill = "turquoise4",alpha=.6, width=.4)+
+    geom_text(inherit.aes = T, nudge_y = 0.5)+
+    xlab("Number of Players")+
+    theme(axis.text.x = element_text(angle = 90))+
+    ylab("Nationality")+
+    labs(title = paste("Fifa",df$season,"Dominant Nationalities")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+  
+}
+
+
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Nationalities with highest overall --------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotNationlaitiesWithHighestOverall <- function(df)
+{
+  nationality_filter <- df %>%
+    group_by(nationality)%>%
+    dplyr::summarise(players_count = n()) %>%
+    dplyr::arrange(-players_count) %>%
+    head(30)
+  
+  df[df$nationality %in% nationality_filter$nationality,] %>%
+    group_by(nationality)%>%
+    dplyr::summarise(nationality_overall_average = round(sum(overall)/length(overall),digits = 2))%>%
+    dplyr::arrange(-nationality_overall_average)%>%
+    head(10)%>%
+    
+    ggplot(aes(x = fct_reorder(as.factor(nationality),nationality_overall_average), y = nationality_overall_average, label = nationality_overall_average))+
+    geom_bar(stat = "identity", fill="#f68060", alpha=.6, width=.4)+
+    geom_text(inherit.aes = T, nudge_y = 0.8)+
+    xlab("Nationality")+
+    coord_flip()+
+    theme(axis.text.x = element_text(angle = 90))+
+    ylab("Average Natinality Overall")+
+    labs(title = paste("Fifa",df$season,"Nationalities with highest overall")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))+
+    theme_bw()
+}
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Clubs with highest number of players ------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotClubsWithHighestPlayerCount <- function(df)
+{
+  df %>%
+    group_by(club)%>%
+    dplyr::summarise(players_count = n())%>%
+    dplyr::arrange(-players_count)%>%
+    head(10)%>%
+    ggplot(aes(x = as.factor(club) %>%
+                 fct_reorder(players_count), y = players_count, label = players_count,
+               fill = factor(ifelse(club=="Arsenal","Arsenal","Others"))))+
+    geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+    geom_bar(stat = "identity", alpha=.6, width=.4)+
+    scale_fill_manual(name = "club", values=c("red","palegreen2"))+
+    coord_flip()+
+    xlab("Club")+
+    ylab( "Number of players") +
+    labs(title =  paste("Fifa",df$season,"Number of players per top 10 clubs")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+}
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Clubs with highest number of left foot players --------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotClubsWithHighestLeftFootPlayers <-function(df)
+{
+  df %>%
+    group_by(club)%>%
+    filter(preferred_foot=="Left")%>%
+    dplyr::summarise(players_count = n())%>%
+    dplyr::arrange(-players_count)%>%
+    head(10)%>%
+    ggplot(aes(x = as.factor(club) %>%
+                 fct_reorder(players_count), y = players_count, label = players_count))+
+    geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
+    geom_bar(stat = "identity", fill = "palegreen2",alpha=.6, width=.4)+
+    coord_flip()+
+    xlab("Club")+
+    ylab( "Number of Left Foot PLayers") +
+    labs(title =  paste("Fifa",df$season,"Number of left foot players per top 10 clubs")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+}
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Best free kick takers in the game ---------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+PlotBestFreeKickTakers <- function(df)
+{
+  df %>%
+    dplyr::arrange(-skill_fk_accuracy, -skill_curve)%>%
+    select(short_name,club,skill_fk_accuracy,skill_curve,image_url)%>%
+    head(10) %>%
+    
+    ggplot(aes(x = club, y = skill_fk_accuracy))+
+    geom_point(aes(size = skill_curve), color = "violetred1")+
+    geom_text(inherit.aes = T, nudge_y = -0.5, aes(label = short_name))+
+    geom_image(aes(image = image_url), nudge_y=1.1, size = 0.11)+
+    xlab("Club")+
+    ylab("Free Kick Accuracy")+
+    labs(title = paste("Fifa",df$season,"Clubs with best free-kick takers")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+    ylim(85,97)
+}
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Extract player image using webpage (too slow fashkh) --------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+AddImageColumnByWeb <- function(df)
+{
+  players_URLs_list <- as.character(df$player_url)
+  image_data_list <- lapply(players_URLs_list, function(x)
+  {
+    webpage <- read_html(x)
+    webpage %>%
+      html_nodes(xpath = "/html/body/div[2]/div/div/div[1]/div/div[1]/div/img") %>%
+      html_attr("data-src")
+  })
+}
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Extract player image using soffia_id ------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+AddImageColumn <-function(df)
+{
+  # extract players images
+  players_id <- df$sofifa_id
+  players_id <- formatC(players_id, format = "d", digits = 5, flag = "0")
+  players_id <- as.data.frame(players_id)
+  
+  image_url <- rep("https://cdn.sofifa.com/players/",NROW(players_id))
+  image_url <- as.data.frame(image_url)
+  
+  image_url$image_url <- paste(image_url$image_url,substr(players_id$players_id,1,3),"/",
+                               substr(players_id$players_id,4,6),"/",as.character(df$season[1]),"_120.png",sep ="")
+  return(mutate(df, image_url = image_url$image_url))
+  
+}
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------------- Height V.s. Dribbiling --------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+
+# there was no direct corelation between hight and dribbling
+# plotting a graph between height and dribbling for all the players was a total mess and did not indicate anything
+# so instead, i have took the average dribbling value for each height range 
+addHeightLevels <- function(df)
+{
+  
+  height_breaks <- c(0, 160, 170, 180, 190, 200, Inf)
+  height_labels <- c("-160", "160-170", "170-180", "180-190", "190-200", "200+")
+  height_brackets <- cut(x=df$height_cm, breaks=height_breaks, 
+                         labels=height_labels, include.lowest = TRUE)
+  df <- mutate(df, height_brackets)
+  return (df)
+}
+
+removeGoalKeapers <- function (df)
+{
+  temp <- subset(df , df$player_positions != "GK")
+  return(temp)
+}
+
+getDribblingAverage <- function (df , c)
+{
+  return (colSums(select(df[df$height_brackets == c,], dribbling )) / NROW(df[df$height_brackets == c,]))
+}
+
+AddDribblingAverageToDataframe <- function (df , array)
+{
+  height_breaks <- c(0, 160, 170, 180, 190, 200, Inf)
+  dribbling_average_labels <- array
+  dribbling_average <- cut(x=df$height_cm, breaks=height_breaks, 
+                           labels=dribbling_average_labels, include.lowest = TRUE)
+  df <- mutate(df, dribbling_average)
+  
+  df$dribbling_average <-  as.numeric(as.character(df$dribbling_average))
+  
+  return(df)
+  
+}
+PlotConcatenatedDribblingAverage <- function (fifa_without_GK_vector , average_dribbling_matrix)
+{
+  p1 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[1]] , average_dribbling_matrix[1,])
+  p2 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[2]] , average_dribbling_matrix[2,])
+  p3 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[3]] , average_dribbling_matrix[3,])
+  p4 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[4]] , average_dribbling_matrix[4,])
+  p5 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[5]] , average_dribbling_matrix[5,])
+  
+  visuals <- rbind(p1,p2,p3,p4,p5)
+  ggplot(visuals,
+         aes(y = dribbling_average,  x = height_brackets, group = season)) + geom_line(aes(color = factor(season)))  +
+    ggtitle("average dribbling for each height range")+theme(plot.title = element_text(hjust = 0.5, size = 14))
+  
+}
+# creating a matrix that will contain average dribbling skill for each height range per each fifa season
+creatingCellsForMatrix <- function (fifa_without_GK_vector)
+{
+  height_levels <- c("-160","160-170","170-180","180-190","190-200","200+")
+  cells <- c()
+  for( fifa in fifa_without_GK_vector )
+  {
+    for (level in height_levels)
+    {
+      cells <-c(cells, getDribblingAverage(fifa,level))
+    }
+  }
+  return(cells)
+}
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------------- Player Position V.s Wage ------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PLotPLayerPositionWithWage <- function(df,exclude_less_than_100k = FALSE)
+  {
+    if (exclude_less_than_100k){
+        data <-df %>%
+        group_by(wage_brackets,Position)%>%
+        filter(wage_brackets!="0-100k")%>%
+        dplyr::summarise(players_count = n())
+    }
+  else{
+      data <-df %>%
+      group_by(wage_brackets,Position)%>%
+      dplyr::summarise(players_count = n())
+  }
+    
+    ggplot(data,aes(x = Position, y = players_count, label = players_count))+
+    geom_bar(stat = "identity",alpha=.6, width=.4,aes(fill = wage_brackets))+
+    coord_flip()+
+    xlab("Position")+
+    ylab( "Number of PLayers") +
+    labs(title =  paste("Fifa",df$season,"Number of players per each wage range")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------------- Preferred-foot V.s wage -------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PLotWageForEachFoot <- function(df)
+  {
+    df %>%
+    group_by(wage_brackets,preferred_foot)%>%
+    filter(wage_brackets!="0-100k")%>%
+    dplyr::summarise(players_count = n()) %>%
+    
+    ggplot(aes(x = preferred_foot, y = players_count, label = players_count))+
+    geom_bar(stat = "identity",alpha=.6, width=.4,aes(fill = wage_brackets))+
+    coord_flip()+
+    xlab("Preferred foot")+
+    ylab( "Number of PLayers") +
+    labs(title =  paste("Fifa",df$season,"Wages for different preferred-foot players")) +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+  }
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Predict Value using linear Regression -----------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------
+ValuePredictionPreProcesssing <- function (df)
+{
+  removedColumns <- c("nationality","player_positions","season", "sofifa_id",
+                      "international_reputation","work_rate",
+                      "body_type","player_tags",
+                      "team_position","team_jersey_number","joined","contract_valid_until",
+                      "player_traits","value_brackets","loaned_from",
+                      "long_name","club","potential",
+                      "ls","st","rs","rw","lw","lf","cf","rf","lam",
+                      "cam","ram","lm","rm","cm","lcm","rcm","cdm",
+                      "ldm","rdm","lwb","rwb","lb","lcb","cb","rcb","rb",
+                      "wage_brackets","preferred_foot","gk_diving","gk_handling",
+                      "gk_kicking","gk_reflexes","gk_speed","gk_positioning",
+                      "goalkeeping_diving","goalkeeping_handling","goalkeeping_kicking",
+                      "goalkeeping_positioning","goalkeeping_reflexes")
+  
+  temp <- df[,!(names(df) %in% removedColumns)]
+  temp
+  temp <- filter(temp, Position != "GK")
+  return(temp)
+}
+GetMostCorrelatedToValue <- function(df)
+  {
+    fifa_preprocessed <- ValuePredictionPreProcesssing(df)
+    fifa_int <- fifa_preprocessed[,map_lgl(fifa_preprocessed,is.numeric)]
+
+    correlation_table<- as.data.frame(cor(fifa_int, use = "complete.obs"))
+
+    value_correlation_column <- correlation_table["value_eur"]
+
+    value_correlation_column <- subset(value_correlation_column, value_eur > 0.48)
+
+    attributes_correleted_to_value <- rownames(value_correlation_column)
+    attributes_correleted_to_value <- as.vector(attributes_correleted_to_value)
+    attributes_correleted_to_value <- attributes_correleted_to_value[attributes_correleted_to_value != "value_eur"]
+    return(attributes_correleted_to_value)
+  }
+
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Polynomial Regression Model to predict wage -----------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+WagePredictionPreProcesssing <- function (df)
+{
+  removedColumns <- c("nationality","player_positions","season", "sofifa_id",
+                      "international_reputation","work_rate",
+                      "body_type","player_tags",
+                      "team_position","team_jersey_number","joined","contract_valid_until",
+                      "player_traits","value_brackets","loaned_from",
+                      "long_name","club","potential",
+                      "ls","st","rs","rw","lw","lf","cf","rf","lam",
+                      "cam","ram","lm","rm","cm","lcm","rcm","cdm",
+                      "ldm","rdm","lwb","rwb","lb","lcb","cb","rcb","rb",
+                      "wage_brackets","preferred_foot","gk_diving","gk_handling",
+                      "gk_kicking","gk_reflexes","gk_speed","gk_positioning",
+                      "goalkeeping_diving","goalkeeping_handling","goalkeeping_kicking",
+                      "goalkeeping_positioning","goalkeeping_reflexes")
+  
+  temp <- df[,!(names(df) %in% removedColumns)]
+  temp
+  temp <- filter(temp, Position != "GK")
+  return(temp)
+}
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- The Most correlated attributes to wage  ---------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PrintMostCorrelatedToWage <- function(df)
+  {
+    fifa_preprocessed <- WagePredictionPreProcesssing(df)
+    fifa_int <- fifa_preprocessed[,map_lgl(fifa_preprocessed,is.numeric)]
+
+    correlation_table<- as.data.frame(cor(fifa_int, use = "complete.obs"))
+
+    value_correlation_column <- correlation_table["wage_eur"]
+    value_correlation_column <- subset(value_correlation_column, wage_eur > 0.32)
+    attributes_correleted_to_value <- rownames(value_correlation_column)
+    attributes_correleted_to_value <- as.vector(attributes_correleted_to_value)
+    return(attributes_correleted_to_value)
+  }
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Linear regression Model to predict wage ---------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#--------------------------------------- Second Trial -------------------------------------------------------------
+LinearRegressionPreProcessing <- function (df)
+  {
+    temp <- select (df, wage_eur, age,potential,value_eur,
+                        dribbling,defending,power_stamina,
+                        power_long_shots,mentality_interceptions,mentality_positioning,
+                        mentality_vision,mentality_penalties,defending_marking,
+                        defending_sliding_tackle) 
+    return(temp)
+  }
+
+###########################################################################
+###########################################################################
+####################### KNN wage prediction ###############################
+###########################################################################
+knnNormalize <- function(x){
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+knnPositionPrediction <- function(df, df.n){
+  dat.d <- sample(1:nrow(df.n),size=nrow(df.n)*0.7,replace = FALSE)
+  train.fifa <- df.n[dat.d,]
+  test.fifa <- df.n[-dat.d,]
+  train.fifa_labels <- df[dat.d,ncol(df)]
+  test.fifa_labels <-df[-dat.d,ncol(df)]
+  #print(NROW(train.fifa_labels))
+  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=107)
+  ACC.73 <- 100 * sum(test.fifa_labels == knn.73)/NROW(test.fifa_labels)
+  ACC.73
+  #table(knn.73 ,test.fifa_labels)
+  #knn.73
+  #confusionMatrix(table(knn.73 ,test.fifa_labels))
+}
+prepareKNNPredictionDataWages <- function(df){
+  df.subset <- df[,c("pace","shooting","passing","dribbling","defending","physic","attacking_crossing","attacking_finishing",
+                     "attacking_heading_accuracy","attacking_short_passing","attacking_volleys","skill_dribbling",
+                     "skill_curve","skill_fk_accuracy","skill_long_passing","skill_ball_control","movement_acceleration",
+                     "movement_sprint_speed","movement_agility","movement_reactions","movement_balance","power_shot_power",
+                     "power_jumping","power_stamina","power_strength","power_long_shots","mentality_aggression",
+                     "defending_marking","defending_standing_tackle","defending_sliding_tackle", "wage_brackets")]
+                     "mentality_interceptions","mentality_positioning","mentality_vision","mentality_penalties",
+  df.subset <- df.subset[complete.cases(df.subset), ]
+  return(df.subset)
+}
+knnWagesPrediction <- function(df, df.n){
+  dat.d <- sample(1:nrow(df.n),size=nrow(df.n)*0.7,replace = FALSE)
+  train.fifa <- df.n[dat.d,]
+  test.fifa <- df.n[-dat.d,]
+  train.fifa_labels <- df[dat.d,ncol(df)]
+  #NROW(train.fifa_labels)
+  test.fifa_labels <-df[-dat.d,ncol(df)]
+  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=107)
+  ACC.73 <- 100 * sum(test.fifa_labels == knn.73)/NROW(test.fifa_labels)
+  #table(knn.73 ,test.fifa_labels)
+  ACC.73
+  #confusionMatrix(table(knn.73 ,test.fifa_labels))
+  #knn.73
+}

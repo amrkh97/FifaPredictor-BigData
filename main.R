@@ -7,6 +7,7 @@ getwd()
 
 source("allFunctions.R")
 
+set.seed(101)
 
 
 # Read datasets
@@ -287,20 +288,6 @@ getBestTeamByOverall(F20_433, F19_433, F18_433)
 
 plotMessiVsCristiano()
 
-
-
-###########################################################################
-###########################################################################
-###########################################################################
-#-------------------------------------- General Functions----------------------------------------------------------
-Plot <- function (df, x_axis, y_axis, g = FALSE, c = NULL)
-  {
-    ggplot(df,
-              aes(y = y_axis, x = x_axis, group = g, color = c)) + geom_point(shape=21, fill="#69b3a2", size=1)
-  }
-
-theme_set(theme_bw())
-
 # F20
 f20_nation <- prepareCountriesData(f20)
 getWorldPlot(f20_nation)
@@ -316,6 +303,33 @@ getWorldPlot(f17_nation)
 # F16
 f16_nation <- prepareCountriesData(f16)
 getWorldPlot(f16_nation)
+
+
+###########################################################################
+###########################################################################
+####################### KNN wage prediction ###############################
+###########################################################################
+
+
+  
+levels(f20$Position)
+fifa20.knn <- prepareKNNPredictionData(f20)
+fifa20.knn.n <- as.data.frame(lapply(fifa20.knn[,1:ncol(fifa20.knn)-1], knnNormalize))
+knnPositionPrediction(fifa20.knn, fifa20.knn.n)
+#---------------------------------------------------
+# testing knn model for wages
+  
+levels(f20$wage_brackets)
+fifa20.wages.knn <- prepareKNNPredictionDataWages(f20)
+fifa20.wages.knn.n <- as.data.frame(lapply(fifa20.wages.knn[,1:ncol(fifa20.wages.knn)-1], knnNormalize))
+knnWagesPrediction(fifa20.wages.knn, fifa20.wages.knn.n)
+
+
+###########################################################################
+###########################################################################
+###########################################################################
+############################# Abdelgawad ##################################
+###########################################################################
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
@@ -324,73 +338,9 @@ getWorldPlot(f16_nation)
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 
-
 # there was no direct corelation between hight and dribbling
 # plotting a graph between height and dribbling for all the players was a total mess and did not indicate anything
 # so instead, i have took the average dribbling value for each height range 
-addHeightLevels <- function(df)
-  {
-  
-  height_breaks <- c(0, 160, 170, 180, 190, 200, Inf)
-  height_labels <- c("-160", "160-170", "170-180", "180-190", "190-200", "200+")
-  height_brackets <- cut(x=df$height_cm, breaks=height_breaks, 
-                          labels=height_labels, include.lowest = TRUE)
-  df <- mutate(df, height_brackets)
-  return (df)
-  }
-
-removeGoalKeapers <- function (df)
-  {
-  temp <- subset(df , df$player_positions != "GK")
-  return(temp)
-  }
-
-getDribblingAverage <- function (df , c)
-  {
-  return (colSums(select(df[df$height_brackets == c,], dribbling )) / NROW(df[df$height_brackets == c,]))
-  }
-
-AddDribblingAverageToDataframe <- function (df , array)
- {
-  height_breaks <- c(0, 160, 170, 180, 190, 200, Inf)
-  dribbling_average_labels <- array
-  dribbling_average <- cut(x=df$height_cm, breaks=height_breaks, 
-                         labels=dribbling_average_labels, include.lowest = TRUE)
-  df <- mutate(df, dribbling_average)
-  
-  df$dribbling_average <-  as.numeric(as.character(df$dribbling_average))
-  
-  return(df)
-  
-  }
-PlotConcatenatedDribblingAverage <- function (fifa_without_GK_vector , average_dribbling_matrix)
-  {
-    p1 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[1]] , average_dribbling_matrix[1,])
-    p2 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[2]] , average_dribbling_matrix[2,])
-    p3 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[3]] , average_dribbling_matrix[3,])
-    p4 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[4]] , average_dribbling_matrix[4,])
-    p5 <- AddDribblingAverageToDataframe(fifa_without_GK_vector[[5]] , average_dribbling_matrix[5,])
-    
-    visuals <- rbind(p1,p2,p3,p4,p5)
-    ggplot(visuals,
-           aes(y = dribbling_average,  x = height_brackets, group = season)) + geom_line(aes(color = factor(season)))  + ggtitle("average dribbling for each height range")
-
-  }
-# creating a matrix that will contain average dribbling skill for each height range per each fifa season
-creatingCellsForMatrix <- function (fifa_without_GK_vector)
-  {
-  height_levels <- c("-160","160-170","170-180","180-190","190-200","200+")
-  cells <- c()
-  for( fifa in fifa_without_GK_vector )
-  {
-    for (level in height_levels)
-    {
-      cells <-c(cells, getDribblingAverage(fifa,level))
-    }
-  }
-  return(cells)
-}
-
 
 ####################################################################
 #re add short_name, sofifa_id
@@ -414,6 +364,14 @@ f18 <- cbind(season = 18,f18)
 f19 <- cbind(season = 19,f19)
 f20 <- cbind(season = 20,f20)
 
+# add image column
+f16 <- AddImageColumn(f16)
+f17 <- AddImageColumn(f17)
+f18 <- AddImageColumn(f18)
+f19 <- AddImageColumn(f19)
+f20 <- AddImageColumn(f20)
+f20[f20$sofifa_id == 251691, "image_url"] = "https://i.pinimg.com/564x/0d/36/e7/0d36e7a476b06333d9fe9960572b66b9.jpg"
+##################################################
 
 # removing all goal keapers rows as they have an NA in the driblling cloumns
 f16_without_GK <- removeGoalKeapers(f16)
@@ -428,15 +386,6 @@ f17_without_GK <- addHeightLevels(f17_without_GK)
 f18_without_GK <- addHeightLevels(f18_without_GK)
 f19_without_GK <- addHeightLevels(f19_without_GK)
 f20_without_GK <- addHeightLevels(f20_without_GK)
-
-#correlation between height and dribbling
-cor(f16_without_GK$height_cm , f16_without_GK$skill_dribbling)
-cor(f17_without_GK$height_cm , f17_without_GK$skill_dribbling)
-cor(f18_without_GK$height_cm , f18_without_GK$skill_dribbling)
-cor(f19_without_GK$height_cm , f19_without_GK$skill_dribbling)
-
-
-cor(f20_without_GK$height_cm , f20_without_GK$skill_dribbling)
 
 # rows names and columns names for creating the matrix of average dribbling value per each height level for each fifa season
 rnames <- c("f16","f17","f18","f19","f20")
@@ -459,27 +408,368 @@ PlotConcatenatedDribblingAverage(fifa_without_GK_vector,average_dribbling_matrix
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 
-Plot(f16, y_axis =  log10(f16$wage_eur), x_axis =f16$Position ) # not really useful
-table(f16$Position, f16$wage_brackets)
-table(f17$Position, f17$wage_brackets)
-table(f18$Position, f18$wage_brackets)
-table(f19$Position, f19$wage_brackets)
-table(f20$Position, f20$wage_brackets)
+PLotPLayerPositionWithWage(f16)
+PLotPLayerPositionWithWage(f16,exclude_less_than_100k=TRUE)
+PLotPLayerPositionWithWage(f17)
+PLotPLayerPositionWithWage(f17,exclude_less_than_100k=TRUE)
+PLotPLayerPositionWithWage(f18)
+PLotPLayerPositionWithWage(f18,exclude_less_than_100k=TRUE)
+PLotPLayerPositionWithWage(f19)
+PLotPLayerPositionWithWage(f19,exclude_less_than_100k=TRUE)
+PLotPLayerPositionWithWage(f20)
+PLotPLayerPositionWithWage(f20,exclude_less_than_100k=TRUE)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------------- Preferred-foot V.s wage -------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PLotWageForEachFoot(f16)
+PLotWageForEachFoot(f17)
+PLotWageForEachFoot(f18)
+PLotWageForEachFoot(f19)
+PLotWageForEachFoot(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Finding the most valuable teams -----------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotValuableTeams(f16)
+PlotValuableTeams(f17)
+PlotValuableTeams(f18)
+PlotValuableTeams(f19)
+PlotValuableTeams(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Finding the Top Wage Bills teams ----------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotWageBills(f16)
+PlotWageBills(f17)
+PlotWageBills(f18)
+PlotWageBills(f19)
+PlotWageBills(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Finding count of Superstars in teams ------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotSuperStars(f16)
+PlotSuperStars(f17)
+PlotSuperStars(f18)
+PlotSuperStars(f19)
+PlotSuperStars(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Age Distribution among the Top Valued Clubs -----------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotAgesForTopValuedClubs(f16)
+PlotAgesForTopValuedClubs(f17)
+PlotAgesForTopValuedClubs(f18)
+PlotAgesForTopValuedClubs(f19)
+PlotAgesForTopValuedClubs(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Clubs with the youngest Squad -------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotClubsWithYoungstPlayers(f16)
+PlotClubsWithYoungstPlayers(f17)
+PlotClubsWithYoungstPlayers(f18)
+PlotClubsWithYoungstPlayers(f19)
+PlotClubsWithYoungstPlayers(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Nationalities with highest overall --------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotNationlaitiesWithHighestOverall(f16)
+PlotNationlaitiesWithHighestOverall(f17)
+PlotNationlaitiesWithHighestOverall(f18)
+PlotNationlaitiesWithHighestOverall(f19)
+PlotNationlaitiesWithHighestOverall(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Clubs with highest number of players ------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotClubsWithHighestPlayerCount(f16)
+PlotClubsWithHighestPlayerCount(f17)
+PlotClubsWithHighestPlayerCount(f18)
+PlotClubsWithHighestPlayerCount(f19)
+PlotClubsWithHighestPlayerCount(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Clubs with highest number of left foot players --------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotClubsWithHighestLeftFootPlayers(f16)
+PlotClubsWithHighestLeftFootPlayers(f17)
+PlotClubsWithHighestLeftFootPlayers(f18)
+PlotClubsWithHighestLeftFootPlayers(f19)
+PlotClubsWithHighestLeftFootPlayers(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Best free kick takers in the game ---------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotBestFreeKickTakers(f16)
+PlotBestFreeKickTakers(f17)
+PlotBestFreeKickTakers(f18)
+PlotBestFreeKickTakers(f19)
+PlotBestFreeKickTakers(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Dominant Nationalities in Fifa ------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+PlotDominantNationalities(f16)
+PlotDominantNationalities(f17)
+PlotDominantNationalities(f18)
+PlotDominantNationalities(f19)
+PlotDominantNationalities(f20)
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Linear regression Model to predict wage ---------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#--------------------------------------- Second Trial -------------------------------------------------------------
+
+pre_processed_f19 <- LinearRegressionPreProcessing(f19_without_GK)
+pre_processed_f20 <- LinearRegressionPreProcessing(f20_without_GK)
+training <- pre_processed_f19
+test <- pre_processed_f20
+
+
+wage_model <- lm (wage_eur ~ age   + 
+                  potential  + value_eur  +  
+                  dribbling  +  defending  + power_stamina  + 
+                  power_long_shots +  mentality_interceptions  +  mentality_positioning  +  
+                  mentality_vision  + mentality_penalties  +  defending_marking  +  
+                  defending_sliding_tackle, data = training)
+summary(wage_model)
+wage_predict <- predict(wage_model)
+any(wage_predict < 0)
+wage_predict[wage_predict < 0] = 0
+wage_df <- data.frame(wage_predict, training$wage_eur)
+colnames(wage_df) <- c("predicted_wage", "actual_wage")
+wage_df <- transform(wage_df, new.col = actual_wage-predicted_wage)
+colnames(wage_df) <- c("predicted_wage", "actual_wage", "difference")
+# plotting both of actual and predicted wages
+ggplot(wage_df,
+       aes(y = predicted_wage, x = actual_wage)) + geom_point(shape=21, fill="#69b3a2", size=1)+geom_smooth(color = "red")
+# Calculate the mean squared error (MSE)of the training data.
+sm <- summary(wage_model)
+MSE <- mean(sm$residuals^2)
+MSE_after_zero_addition <- mean(wage_df$difference^2)
+MSE #130820612
+MSE_after_zero_addition #130562942
+max(wage_df$difference) #200967.6
+
+
+# test wage model
+wage_predict <- predict(wage_model, newdata =  test)
+any(wage_predict < 0)
+wage_predict[wage_predict < 0] = 0
+wage_df <- data.frame(wage_predict, test$wage_eur)
+colnames(wage_df) <- c("predicted_wage", "actual_wage")
+wage_df <- transform(wage_df, new.col = actual_wage-predicted_wage)
+colnames(wage_df) <- c("predicted_wage", "actual_wage", "difference")
+# plotting both of actual and predicted wages
+ggplot(wage_df,
+       aes(y = predicted_wage, x = actual_wage)) + geom_point(shape=21, fill="#69b3a2", size=1)+ geom_smooth(color = "red")
+        
+# Calculate the mean squared error (MSE)of the training data.
+sm <- summary(wage_model)
+MSE <- mean(sm$residuals^2)
+MSE_after_zero_addition <- mean(wage_df$difference^2)
+MSE #130820612
+MSE_after_zero_addition #122856893
+max(wage_df$difference) #239382.6
+
+wage_df$accuracy <- ifelse(wage_df$difference > 0.25 * wage_df$actual_wage , "No",ifelse(wage_df$difference < -(0.25 * wage_df$actual_wage),"No", "Yes"))
+accuracy <- 100*(table(wage_df$accuracy)[2] / (table(wage_df$accuracy)[1]+ 
+                                                              table(wage_df$accuracy)[2]))
+accuracy #24.81837 
 
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
-#---------------------------------------- Preferred-foot V.s wage --------------------------------------------------
+#---------------------------------- Predict Value using linear Regression -----------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 
-ggplot(f20,
-           aes(y = wage_eur,  x = preferred_foot)) +
-            geom_point(shape=21, size=4, aes(color = preferred_foot)) + 
-              ggtitle("wages for each preferred foot players")
+attributes_correleted_to_value <- GetMostCorrelatedToValue(f19)
+sample = sample.split(f20, SplitRatio = 0.6)
+training_set <- subset(f20, sample == TRUE)
+test_set <- subset(f20, sample == FALSE)
+
+#######################################
+# Training the model
+value_linera_predictor <- lm( paste("value_eur ~", paste(attributes_correleted_to_value, collapse = "+"), sep = ""),
+           data = training_set, na.action = na.omit)
+
+mean(summary(value_linera_predictor)$residuals^2) #396798076374
+
+#####################################
+# Predicting Market value
+test_fit <- predict(value_linera_predictor, newdata = test_set)
+test_fit <- round(test_fit,0)
+test_set$predicted_value <- test_fit
+test_set_name_values <- test_set[c("short_name","value_eur","predicted_value")]
+test_set_name_values <- test_set_name_values %>%
+  mutate(difference = value_eur - predicted_value )
+test_set_name_values <- na.omit(test_set_name_values)
+
+####################################
+# plotting the actual value vs predicted ones
+ggplot(test_set_name_values,
+                aes(x=value_eur, y=predicted_value)) + geom_point()+
+                  xlab("Actual market value")+
+                  ylab( "Predicted market value") +
+                  labs(title =  paste("Fifa",f19$season,"Players Market value prediction")) +
+                  theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+
+test_set_name_values$accuracy <- ifelse(test_set_name_values$difference > 0.20 * test_set_name_values$value_eur , "No",
+                                ifelse(test_set_name_values$difference < -(0.20 * test_set_name_values$value_eur),"No", "Yes"))
+accuracy <- 100*(table(test_set_name_values$accuracy)[2] / (table(test_set_name_values$accuracy)[1]+ 
+                                                          table(test_set_name_values$accuracy)[2]))
+accuracy #69.16569 
+
 
 #------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#---------------------------------- Polynomial Regression Model to predict wage -----------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+correlated_attributes <- PrintMostCorrelatedToWage(f20)
+
+#########################################################################
+# plot each attribute vs wage to see the best fit curve, skill dribbling will be omitted because it is correlated to dribbling
+# 1- market value
+ggplot(f19, aes(y= wage_eur, x= value_eur)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#2- passing
+ggplot(f19, aes(y= wage_eur, x= passing)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#3- dribbling
+ggplot(f19, aes(y= wage_eur, x= dribbling)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#4- attacking_short_passing
+ggplot(f19, aes(y= wage_eur, x= attacking_short_passing)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#5-skill_long_passing
+ggplot(f19, aes(y= wage_eur, x= skill_long_passing)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#6- skill_ball_control
+ggplot(f19, aes(y= wage_eur, x= skill_ball_control)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#7- movement_reactions
+ggplot(f19, aes(y= wage_eur, x= movement_reactions)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#8- power_shot_power
+ggplot(f19, aes(y= wage_eur, x= power_shot_power)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#9- mentality_vision
+ggplot(f19, aes(y= wage_eur, x= mentality_vision)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#10- overall
+ggplot(f19, aes(y= wage_eur, x= overall)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+#11- release_clause_eur
+ggplot(f19, aes(y= wage_eur, x= release_clause_eur)) + geom_point(color ="turquoise4", alpha=.7)+ geom_smooth(color = "red")
+
+
+#it is clear that almost all features have a degree 2 relation with wage, except for market value
+
+
+#########################################################################
+#################### Wage prediction using polynomial model####################################
+pre_prcessed_data <- ValuePredictionPreProcesssing(f20)
+### shuffling the data
+pre_prcessed_data<- pre_prcessed_data[sample(nrow(pre_prcessed_data)),]
+#######################
+sample = sample.split(pre_prcessed_data, SplitRatio = 0.7)
+training_set <- subset(pre_prcessed_data,sample = TRUE)
+test_set <- subset(pre_prcessed_data,sample = FALSE)
+
+
+wage_predictor <- lm(wage_eur~ value_eur+release_clause_eur+ I(passing^2) + I(dribbling^2) +I(attacking_short_passing^2)+
+                      I(skill_ball_control^2)+ I(movement_reactions^2)+ I(overall^2)+ I(power_shot_power^2)+
+                       I(mentality_vision^2),data = training_set, na.action = na.omit)
+summary(wage_predictor)
+
+wage_prediction <- predict(wage_predictor, newdata = test_set)
+test_set$predicted_wage <- wage_prediction
+test_set<- test_set[,c("wage_eur","predicted_wage")]
+test_set <- mutate(test_set,difference = wage_eur - predicted_wage)
+
+test_set$accuracy <- ifelse(test_set$difference > 0.20 * test_set$wage_eur , "No",ifelse(test_set$difference < -(0.20 * test_set$wage_eur),"No", "Yes"))
+accuracy <- 100*(table(test_set$accuracy)[2] / (table(test_set$accuracy)[1]+ 
+                                                              table(test_set$accuracy)[2]))
+
+accuracy #21.90091  
+
+
+
+
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#----------------------------------- Failure Attempts -------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 #---------------------------------- Linear regression Model to predict wage ---------------------------------------
@@ -496,7 +786,7 @@ ggplot(f20,
 # first case (train on fifa16, fifa17 and fifa18)
 # preprocessing (bind all of fifa16 till 18 datasets)
 f16_till_18 <- rbind(f16_without_GK, f17_without_GK, f18_without_GK)
-NROW( f16_till_18[f16_till_18$long_name == "Lionel Andrés Messi Cuccittini"]) # just to check that lionel Messi exists in 3 rows
+NROW( f16_till_18[f16_till_18$long_name == "Lionel Andrés Messi Cuccittini",]) # just to check that lionel Messi exists in 3 rows
 # remove some columns with NA 
 f16_till_18 <- f16_till_18[, !(colnames(f16_till_18) %in% c("gk_diving", "gk_handling", "gk_kicking", "gk_reflexes",
                                                             "gk_speed", "gk_positioning", "release_clause_eur"))]
@@ -618,72 +908,6 @@ MSE_after_zero_addition
 max(wage_df$difference)
 min(wage_df$difference)
 
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Linear regression Model to predict wage ---------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#--------------------------------------- Second Trial -------------------------------------------------------------
-LinearRegressionPreProcessing <- function (df)
-  {
-    temp <- select (df, wage_eur, age,potential,value_eur,
-                        dribbling,defending,power_stamina,
-                        power_long_shots,mentality_interceptions,mentality_positioning,
-                        mentality_vision,mentality_penalties,defending_marking,
-                        defending_sliding_tackle) 
-    return(temp)
-  }
-pre_processed_f19 <- LinearRegressionPreProcessing(f19_without_GK)
-pre_processed_f20 <- LinearRegressionPreProcessing(f20_without_GK)
-training <- pre_processed_f19
-test <- pre_processed_f20
-
-
-wage_model <- lm (wage_eur ~ age   + 
-                  potential  + value_eur  +  
-                  dribbling  +  defending  + power_stamina  + 
-                  power_long_shots +  mentality_interceptions  +  mentality_positioning  +  
-                  mentality_vision  + mentality_penalties  +  defending_marking  +  
-                  defending_sliding_tackle, data = training)
-summary(wage_model)
-wage_predict <- predict(wage_model)
-any(wage_predict < 0)
-wage_predict[wage_predict < 0] = 0
-wage_df <- data.frame(wage_predict, training$wage_eur)
-colnames(wage_df) <- c("predicted_wage", "actual_wage")
-wage_df <- transform(wage_df, new.col = actual_wage-predicted_wage)
-colnames(wage_df) <- c("predicted_wage", "actual_wage", "difference")
-# plotting both of actual and predicted wages
-ggplot(wage_df,
-       aes(y = predicted_wage, x = actual_wage)) + geom_point(shape=21, fill="#69b3a2", size=1)
-# Calculate the mean squared error (MSE)of the training data.
-sm <- summary(wage_model)
-MSE <- mean(sm$residuals^2)
-MSE_after_zero_addition <- mean(wage_df$difference^2)
-MSE
-MSE_after_zero_addition
-max(wage_df$difference)
-
-# test wage model
-
-wage_predict <- predict(wage_model, newdata =  test)
-any(wage_predict < 0)
-wage_predict[wage_predict < 0] = 0
-wage_df <- data.frame(wage_predict, test$wage_eur)
-colnames(wage_df) <- c("predicted_wage", "actual_wage")
-wage_df <- transform(wage_df, new.col = actual_wage-predicted_wage)
-colnames(wage_df) <- c("predicted_wage", "actual_wage", "difference")
-# plotting both of actual and predicted wages
-ggplot(wage_df,
-       aes(y = predicted_wage, x = actual_wage)) + geom_point(shape=21, fill="#69b3a2", size=1)
-# Calculate the mean squared error (MSE)of the training data.
-sm <- summary(wage_model)
-MSE <- mean(sm$residuals^2)
-MSE_after_zero_addition <- mean(wage_df$difference^2)
-MSE
-MSE_after_zero_addition
 
 
 #------------------------------------------------------------------------------------------------------------------
@@ -724,439 +948,3 @@ z <- summary(wage_logit)$coefficients/summary(wage_logit)$standard.errors
 # 2-tailed z test
 p <- (1 - pnorm(abs(z), 0, 1)) * 2
 p
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Finding the most valuable teams -----------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-PlotValuableTeams <- function(df)
- {
-  #  fifa_grouped_by_club <- group_by(df,club)
-  #  fifa_grouped_by_club_summarized <- summarise(fifa_grouped_by_club, club.squad.value = round(sum(value_eur)/1000000))
-  #  fifa_grouped_by_club_summarized_arranged <- arrange(fifa_grouped_by_club_summarized,-club.squad.value)
-  #  fifa_grouped_by_club_summarized_arranged <- head(fifa_grouped_by_club_summarized_arranged,10)
-   df %>% group_by(club) %>%
-      summarise(club.squad.value = round(sum(value_eur)/1000000)) %>%
-          arrange(-club.squad.value) %>%
-            head(10) %>%
-
-    ggplot(aes(
-                x = fct_reorder(as.factor(club),club.squad.value), y = club.squad.value, label = club.squad.value))+
-      geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
-      geom_bar(stat = "identity", fill = "violetred1",alpha=.6, width=.4)+
-      coord_flip()+
-      xlab("Club")+
-      ylab("Squad Value in Million")+
-      labs(title = paste("Fifa",df$season ,"Most Valuable Teams")) +
-    theme(plot.title = element_text(hjust = 0.5, size = 14))
- }
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Finding the Top Wage Bills teams ----------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-PlotWageBills <- function(df)
-  {
-    df %>% group_by(club) %>%
-      summarise(total_wage = round(sum(wage_eur)/1000000 , digits = 2)) %>%
-          arrange(-total_wage) %>%
-            head(10) %>%
-
-    ggplot(aes(
-                x = fct_reorder(as.factor(club),total_wage), y = total_wage, label = total_wage))+
-      geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
-      geom_bar(stat = "identity", fill = "violetred1",alpha=.6, width=.4)+
-      coord_flip()+
-      xlab("Club")+
-      ylab( "Squad Wages in Million")+
-      labs(title =  paste("Fifa",df$season ,"Top Wage Bills")) +
-    theme(plot.title = element_text(hjust = 0.5, size = 14))
-  }
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Finding count of Superstars in teams -----------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-PlotSuperStars <- function (df)
-  {
-    df %>%
-      mutate(super_star = ifelse(overall> 86, "super star","non-super star"))%>%
-        group_by(club)%>%
-          filter(super_star=="super star")%>%
-            summarise(players_count = n())%>%
-              arrange(-players_count)%>%
-  ggplot(aes(x = as.factor(club) %>%
-               fct_reorder(players_count), y = players_count, label = players_count))+
-  geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
-  geom_bar(stat = "identity", fill = "palegreen2",alpha=.6, width=.4)+
-  coord_flip()+
-  xlab("Club")+
-  ylab( "Number of Superstars") +
-  labs(title =  paste("Fifa",df$season,"Number of Superstars per top 10 clubs")) +
-  theme(plot.title = element_text(hjust = 0.5, size = 14))
-  }
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Age Distribution among the Top Valued Clubs ---------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-PlotAgesForTopValuedClubs <- function(df)
-  {
-    most_valued_clubs <- df %>%
-      group_by(club)%>%
-        summarise(club_squad_value = round(sum(value_eur)/1000000))%>%
-          arrange(-club_squad_value)%>%
-            head(10)
-
-    clubs_and_ages <- df[df$club %in% most_valued_clubs[[1]], c("club", "age")]
-
-    ggplot(clubs_and_ages, aes(x = age, y = club, fill = club)) +
-    geom_violin(trim = F)+
-    geom_boxplot(width = 0.1)+
-    theme(axis.text.x = element_text(angle = 90), legend.position = "none")+
-    ylab("Age distribution amongst Clubs") +
-    labs(title = paste("Fifa",df$season,"Age Distribution among the Top Valued Clubs")) +
-    theme(plot.title = element_text(hjust = 0.5, size = 14))
-  }
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Clubs with the youngest Squad -------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-PlotClubsWithYoungstPlayers <- function(df)
-  {
-    df %>%
-      group_by(club)%>%
-        summarise(club_age_average = round(sum(age)/length(age),digits = 2))%>%
-          arrange(club_age_average)%>%
-            head(10)%>%
-    
-    ggplot(aes(y = fct_reorder(as.factor(club),club_age_average), x = club_age_average, label = club_age_average))+
-    geom_bar(stat = "identity", fill = "turquoise4",alpha=.6, width=.4)+
-    geom_text(inherit.aes = T, nudge_y = 0.5)+
-    xlab("Club")+
-    theme(axis.text.x = element_text(angle = 90))+
-    ylab("Average Squad Age")+
-    labs(title = paste("Fifa",df$season,"Clubs with the youngest Squad")) +
-    theme(plot.title = element_text(hjust = 0.5, size = 14))
-  }
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Dominant Nationalities in Fifa --------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-PlotDominantNationalities <-function(df)
-  {
-    df %>%
-     group_by(nationality)%>%
-       summarise(players_count = n()) %>%
-         arrange(-players_count) %>%
-           head(10) %>%
-
-  ggplot(aes(y = fct_reorder(as.factor(nationality),players_count), x = players_count, label = players_count))+
-  geom_bar(stat = "identity", fill = "turquoise4",alpha=.6, width=.4)+
-  geom_text(inherit.aes = T, nudge_y = 0.5)+
-  xlab("Number of Players")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylab("Nationality")+
-  labs(title = paste("Fifa",df$season,"Dominant Nationalities")) +
-  theme(plot.title = element_text(hjust = 0.5, size = 14))
-
-  }
-
-
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Nationalities with highest overall --------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-PlotNationlaitiesWithHighestOverall <- function(df)
-  {
-    nationality_filter <- df %>%
-                            group_by(nationality)%>%
-                              summarise(players_count = n()) %>%
-                                arrange(-players_count) %>%
-                                  head(30)
-
-    df[df$nationality %in% nationality_filter$nationality,] %>%
-      group_by(nationality)%>%
-          summarise(nationality_overall_average = round(sum(overall)/length(overall),digits = 2))%>%
-            arrange(-nationality_overall_average)%>%
-              head(10)%>%
-    
-    ggplot(aes(x = fct_reorder(as.factor(nationality),nationality_overall_average), y = nationality_overall_average, label = nationality_overall_average))+
-    geom_bar(stat = "identity", fill="#f68060", alpha=.6, width=.4)+
-    geom_text(inherit.aes = T, nudge_y = 0.8)+
-    xlab("Nationality")+
-    coord_flip()+
-    theme(axis.text.x = element_text(angle = 90))+
-    ylab("Average Natinality Overall")+
-    labs(title = paste("Fifa",df$season,"Nationalities with highest overall")) +
-    theme(plot.title = element_text(hjust = 0.5, size = 14))+
-    theme_bw()
-  }
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Clubs with highest number of players ------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-PlotClubsWithHighestPlayerCount <- function(df)
-  {
-    df %>%
-        group_by(club)%>%
-            summarise(players_count = n())%>%
-              arrange(-players_count)%>%
-                head(10)%>%
-  ggplot(aes(x = as.factor(club) %>%
-               fct_reorder(players_count), y = players_count, label = players_count,
-               fill = factor(ifelse(club=="Arsenal","Arsenal","Others"))))+
-  geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
-  geom_bar(stat = "identity", alpha=.6, width=.4)+
-  scale_fill_manual(name = "club", values=c("red","palegreen2"))+
-  coord_flip()+
-  xlab("Club")+
-  ylab( "Number of players") +
-  labs(title =  paste("Fifa",df$season,"Number of players per top 10 clubs")) +
-  theme(plot.title = element_text(hjust = 0.5, size = 14))
-  }
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Clubs with highest number of left foot players --------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-PlotClubsWithHighestLeftFootPlayers <-function(df)
-  {
-    df %>%
-        group_by(club)%>%
-          filter(preferred_foot=="Left")%>%
-            summarise(players_count = n())%>%
-              arrange(-players_count)%>%
-                head(10)%>%
-  ggplot(aes(x = as.factor(club) %>%
-               fct_reorder(players_count), y = players_count, label = players_count))+
-  geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
-  geom_bar(stat = "identity", fill = "palegreen2",alpha=.6, width=.4)+
-  coord_flip()+
-  xlab("Club")+
-  ylab( "Number of Left Foot PLayers") +
-  labs(title =  paste("Fifa",df$season,"Number of left foot players per top 10 clubs")) +
-  theme(plot.title = element_text(hjust = 0.5, size = 14))
-  }
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Best free kick takers in the game ---------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-PlotBestFreeKickTakers <- function(df)
-  {
-    df %>%
-      arrange(-skill_fk_accuracy, -skill_curve)%>%
-        select(short_name,club,skill_fk_accuracy,skill_curve,image_url)%>%
-          head(10) %>%
-    
-    ggplot(aes(x = club, y = skill_fk_accuracy))+
-    geom_point(aes(size = skill_curve), color = "violetred1")+
-    geom_text(inherit.aes = T, nudge_y = -0.5, aes(label = short_name))+
-    geom_image(aes(image = image_url), nudge_y=1.1, size = 0.11)+
-    xlab("Club")+
-    ylab("Free Kick Accuracy")+
-    labs(title = paste("Fifa",df$season,"Clubs with best free-kick takers")) +
-    theme(plot.title = element_text(hjust = 0.5, size = 14))+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-    ylim(85,97)
-  }
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Extract player image using webpage (too slow fashkh) --------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-AddImageColumnByWeb <- function(df)
-  {
-    players_URLs_list <- as.character(df$player_url)
-    image_data_list <- lapply(players_URLs_list, function(x)
-      {
-        webpage <- read_html(x)
-        webpage %>%
-          html_nodes(xpath = "/html/body/div[2]/div/div/div[1]/div/div[1]/div/img") %>%
-          html_attr("data-src")
-      })
-  }
-
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Extract player image using soffia_id (too slow fashkh) ------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-AddImageColumn <-function(df)
-  {
-    # extract players images
-    players_id <- df$sofifa_id
-    players_id <- formatC(players_id, format = "d", digits = 5, flag = "0")
-    players_id <- as.data.frame(players_id)
-
-    image_url <- rep("https://cdn.sofifa.com/players/",NROW(players_id))
-    image_url <- as.data.frame(image_url)
-
-    image_url$image_url <- paste(image_url$image_url,substr(players_id$players_id,1,3),"/",
-              substr(players_id$players_id,4,6),"/",as.character(df$season[1]),"_120.png",sep ="")
-    return(mutate(df, image_url = image_url$image_url))
-
-  }
-
-###############################################
-# add image column
-f16 <- AddImageColumn(f16)
-f17 <- AddImageColumn(f17)
-f18 <- AddImageColumn(f18)
-f19 <- AddImageColumn(f19)
-f20 <- AddImageColumn(f20)
-f20[f20$sofifa_id == 251691, "image_url"] = "https://i.pinimg.com/564x/0d/36/e7/0d36e7a476b06333d9fe9960572b66b9.jpg"
-##################################################
-
-PlotValuableTeams(f16)
-PlotWageBills(f16)
-
-PlotValuableTeams(f20)
-PlotWageBills(f20)
-
-PlotSuperStars(f16)
-PlotSuperStars(f20)
-
-PlotAgesForTopValuedClubs(f16)
-PlotAgesForTopValuedClubs(f20)
-
-PlotClubsWithYoungstPlayers(f16)
-PlotClubsWithYoungstPlayers(f20)
-
-
-PlotNationlaitiesWithHighestOverall(f20)
-
-PlotClubsWithHighestPlayerCount(f16)
-PlotClubsWithHighestPlayerCount(f17)
-PlotClubsWithHighestPlayerCount(f18)
-PlotClubsWithHighestPlayerCount(f19)
-PlotClubsWithHighestPlayerCount(f20)
-
-PlotClubsWithHighestLeftFootPlayers(f16)
-PlotClubsWithHighestLeftFootPlayers(f20)
-
-#############################doll ya 3amr
-PlotBestFreeKickTakers(f16)
-PlotBestFreeKickTakers(f17)
-PlotBestFreeKickTakers(f18)
-PlotBestFreeKickTakers(f19)
-PlotBestFreeKickTakers(f20)
-
-PlotDominantNationalities(f16)
-
-#---------------------------------------------------
-# testing knn model for position
-prepareKNNPredictionData <- function(df){
-  df.subset <- df[,c("pace","shooting","passing","dribbling","defending","physic","attacking_crossing","attacking_finishing",
-                    "attacking_heading_accuracy","attacking_short_passing","attacking_volleys","skill_dribbling",
-                    "skill_curve","skill_fk_accuracy","skill_long_passing","skill_ball_control","movement_acceleration",
-                    "movement_sprint_speed","movement_agility","movement_reactions","movement_balance","power_shot_power",
-                    "power_jumping","power_stamina","power_strength","power_long_shots","mentality_aggression",
-                    "mentality_interceptions","mentality_positioning","mentality_vision","mentality_penalties",
-                    "defending_marking","defending_standing_tackle","defending_sliding_tackle", "player_positions")]
-  df.subset <- df.subset[complete.cases(df.subset), ]
-  df.subset <- df.subset[!grepl(",", df.subset$player_positions), ]
-  return(df.subset)
-}
-knnNormalize <- function(x){
-  return ((x - min(x)) / (max(x) - min(x)))
-}
-knnPositionPrediction <- function(df, df.n){
-  dat.d <- sample(1:nrow(df.n),size=nrow(df.n)*0.7,replace = FALSE)
-  train.fifa <- df.n[dat.d,]
-  test.fifa <- df.n[-dat.d,]
-  train.fifa_labels <- df[dat.d,ncol(df)]
-  test.fifa_labels <-df[-dat.d,ncol(df)]
-  #print(NROW(train.fifa_labels))
-  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=107)
-  ACC.73 <- 100 * sum(test.fifa_labels == knn.73)/NROW(test.fifa_labels)
-  ACC.73
-  #table(knn.73 ,test.fifa_labels)
-  #knn.73
-  #confusionMatrix(table(knn.73 ,test.fifa_labels))
-  
-}
-levels(f20$Position)
-fifa20.knn <- prepareKNNPredictionData(f20)
-fifa20.knn.n <- as.data.frame(lapply(fifa20.knn[,1:ncol(fifa20.knn)-1], knnNormalize))
-knnPositionPrediction(fifa20.knn, fifa20.knn.n)
-#---------------------------------------------------
-# testing knn model for wages
-prepareKNNPredictionDataWages <- function(df){
-  df.subset <- df[,c("pace","shooting","passing","dribbling","defending","physic","attacking_crossing","attacking_finishing",
-                     "attacking_heading_accuracy","attacking_short_passing","attacking_volleys","skill_dribbling",
-                     "skill_curve","skill_fk_accuracy","skill_long_passing","skill_ball_control","movement_acceleration",
-                     "movement_sprint_speed","movement_agility","movement_reactions","movement_balance","power_shot_power",
-                     "power_jumping","power_stamina","power_strength","power_long_shots","mentality_aggression",
-                     "mentality_interceptions","mentality_positioning","mentality_vision","mentality_penalties",
-                     "defending_marking","defending_standing_tackle","defending_sliding_tackle", "wage_brackets")]
-  df.subset <- df.subset[complete.cases(df.subset), ]
-  return(df.subset)
-}
-knnWagesPrediction <- function(df, df.n){
-  dat.d <- sample(1:nrow(df.n),size=nrow(df.n)*0.7,replace = FALSE)
-  train.fifa <- df.n[dat.d,]
-  test.fifa <- df.n[-dat.d,]
-  train.fifa_labels <- df[dat.d,ncol(df)]
-  test.fifa_labels <-df[-dat.d,ncol(df)]
-  #NROW(train.fifa_labels)
-  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=107)
-  ACC.73 <- 100 * sum(test.fifa_labels == knn.73)/NROW(test.fifa_labels)
-  ACC.73
-  #table(knn.73 ,test.fifa_labels)
-  #knn.73
-  #confusionMatrix(table(knn.73 ,test.fifa_labels))
-  
-}
-levels(f20$wage_brackets)
-fifa20.wages.knn <- prepareKNNPredictionDataWages(f20)
-fifa20.wages.knn.n <- as.data.frame(lapply(fifa20.wages.knn[,1:ncol(fifa20.wages.knn)-1], knnNormalize))
-knnWagesPrediction(fifa20.wages.knn, fifa20.wages.knn.n)
