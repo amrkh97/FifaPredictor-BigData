@@ -1116,7 +1116,7 @@ knnPositionPrediction <- function(df, df.n){
   train.fifa_labels <- df[dat.d,ncol(df)]
   test.fifa_labels <-df[-dat.d,ncol(df)]
   #print(NROW(train.fifa_labels))
-  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=106)
+  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=107)
   ACC.73 <- 100 * sum(test.fifa_labels == knn.73)/NROW(test.fifa_labels)
   ACC.73
   #table(knn.73 ,test.fifa_labels)
@@ -1148,7 +1148,7 @@ knnWagesPrediction <- function(df, df.n){
   train.fifa_labels <- df[dat.d,ncol(df)]
   test.fifa_labels <-df[-dat.d,ncol(df)]
   #NROW(train.fifa_labels)
-  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=6)
+  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=107)
   ACC.73 <- 100 * sum(test.fifa_labels == knn.73)/NROW(test.fifa_labels)
   ACC.73
   #table(knn.73 ,test.fifa_labels)
