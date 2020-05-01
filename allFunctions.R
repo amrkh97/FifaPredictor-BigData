@@ -17,6 +17,7 @@ library(rworldmap)
 library(ggplot2)
 library(reshape2)
 
+require(purrr)
 require(ggpubr)
 require(nnet)
 require(forcats)
@@ -105,7 +106,7 @@ plotValueAbove30M <- function(df){
 
 plotTopClubValue <- function(df){
   group_clubs <- group_by(df, club)
-  club_value <- summarise(group_clubs, total_val = sum(value_eur))
+  club_value <- dplyr::summarise(group_clubs, total_val = sum(value_eur))
   top_10_valuable_clubs <- top_n(club_value, 10, total_val)
   
   top_10_valuable_clubs$Club <-as.factor(top_10_valuable_clubs$club)
@@ -267,7 +268,7 @@ getWorldPlot <- function(df){
 best_team <- function(df, input){
   
   team <- tibble()
-  team_copy <- df %>% arrange(-overall)
+  team_copy <- df %>% dplyr::arrange(-overall)
   
   tac442 <- c("GK","RB", "LCB", "RCB", "LB", "RM", "CM", "CM", "LM", "ST", "ST")
   tac352 <- c("GK","CB", "LCB", "RCB", "LM", "CDM", "CAM", "CDM", "RM", "ST", "ST")
@@ -503,8 +504,8 @@ PlotValuableTeams <- function(df)
   #  fifa_grouped_by_club_summarized_arranged <- arrange(fifa_grouped_by_club_summarized,-club.squad.value)
   #  fifa_grouped_by_club_summarized_arranged <- head(fifa_grouped_by_club_summarized_arranged,10)
   df %>% group_by(club) %>%
-    summarise(club.squad.value = round(sum(value_eur)/1000000)) %>%
-    arrange(-club.squad.value) %>%
+    dplyr::summarise(club.squad.value = round(sum(value_eur)/1000000)) %>%
+    dplyr::arrange(-club.squad.value) %>%
     head(10) %>%
     
     ggplot(aes(
@@ -529,8 +530,8 @@ PlotValuableTeams <- function(df)
 PlotWageBills <- function(df)
 {
   df %>% group_by(club) %>%
-    summarise(total_wage = round(sum(wage_eur)/1000000 , digits = 2)) %>%
-    arrange(-total_wage) %>%
+    dplyr::summarise(total_wage = round(sum(wage_eur)/1000000 , digits = 2)) %>%
+    dplyr::arrange(-total_wage) %>%
     head(10) %>%
     
     ggplot(aes(
@@ -558,8 +559,8 @@ PlotSuperStars <- function (df)
     mutate(super_star = ifelse(overall> 86, "super star","non-super star"))%>%
     group_by(club)%>%
     filter(super_star=="super star")%>%
-    summarise(players_count = n())%>%
-    arrange(-players_count)%>%
+    dplyr::summarise(players_count = n())%>%
+    dplyr::arrange(-players_count)%>%
     ggplot(aes(x = as.factor(club) %>%
                  fct_reorder(players_count), y = players_count, label = players_count))+
     geom_text(hjust = 0.01,inherit.aes = T, position = "identity")+
@@ -583,8 +584,8 @@ PlotAgesForTopValuedClubs <- function(df)
 {
   most_valued_clubs <- df %>%
     group_by(club)%>%
-    summarise(club_squad_value = round(sum(value_eur)/1000000))%>%
-    arrange(-club_squad_value)%>%
+    dplyr::summarise(club_squad_value = round(sum(value_eur)/1000000))%>%
+    dplyr::arrange(-club_squad_value)%>%
     head(10)
   
   clubs_and_ages <- df[df$club %in% most_valued_clubs[[1]], c("club", "age")]
@@ -610,8 +611,8 @@ PlotClubsWithYoungstPlayers <- function(df)
 {
   df %>%
     group_by(club)%>%
-    summarise(club_age_average = round(sum(age)/length(age),digits = 2))%>%
-    arrange(club_age_average)%>%
+    dplyr::summarise(club_age_average = round(sum(age)/length(age),digits = 2))%>%
+    dplyr::arrange(club_age_average)%>%
     head(10)%>%
     
     ggplot(aes(y = fct_reorder(as.factor(club),club_age_average), x = club_age_average, label = club_age_average))+
@@ -635,8 +636,8 @@ PlotDominantNationalities <-function(df)
 {
   df %>%
     group_by(nationality)%>%
-    summarise(players_count = n()) %>%
-    arrange(-players_count) %>%
+    dplyr::summarise(players_count = n()) %>%
+    dplyr::arrange(-players_count) %>%
     head(10) %>%
     
     ggplot(aes(y = fct_reorder(as.factor(nationality),players_count), x = players_count, label = players_count))+
@@ -664,14 +665,14 @@ PlotNationlaitiesWithHighestOverall <- function(df)
 {
   nationality_filter <- df %>%
     group_by(nationality)%>%
-    summarise(players_count = n()) %>%
-    arrange(-players_count) %>%
+    dplyr::summarise(players_count = n()) %>%
+    dplyr::arrange(-players_count) %>%
     head(30)
   
   df[df$nationality %in% nationality_filter$nationality,] %>%
     group_by(nationality)%>%
-    summarise(nationality_overall_average = round(sum(overall)/length(overall),digits = 2))%>%
-    arrange(-nationality_overall_average)%>%
+    dplyr::summarise(nationality_overall_average = round(sum(overall)/length(overall),digits = 2))%>%
+    dplyr::arrange(-nationality_overall_average)%>%
     head(10)%>%
     
     ggplot(aes(x = fct_reorder(as.factor(nationality),nationality_overall_average), y = nationality_overall_average, label = nationality_overall_average))+
@@ -698,8 +699,8 @@ PlotClubsWithHighestPlayerCount <- function(df)
 {
   df %>%
     group_by(club)%>%
-    summarise(players_count = n())%>%
-    arrange(-players_count)%>%
+    dplyr::summarise(players_count = n())%>%
+    dplyr::arrange(-players_count)%>%
     head(10)%>%
     ggplot(aes(x = as.factor(club) %>%
                  fct_reorder(players_count), y = players_count, label = players_count,
@@ -727,8 +728,8 @@ PlotClubsWithHighestLeftFootPlayers <-function(df)
   df %>%
     group_by(club)%>%
     filter(preferred_foot=="Left")%>%
-    summarise(players_count = n())%>%
-    arrange(-players_count)%>%
+    dplyr::summarise(players_count = n())%>%
+    dplyr::arrange(-players_count)%>%
     head(10)%>%
     ggplot(aes(x = as.factor(club) %>%
                  fct_reorder(players_count), y = players_count, label = players_count))+
@@ -751,7 +752,7 @@ PlotClubsWithHighestLeftFootPlayers <-function(df)
 PlotBestFreeKickTakers <- function(df)
 {
   df %>%
-    arrange(-skill_fk_accuracy, -skill_curve)%>%
+    dplyr::arrange(-skill_fk_accuracy, -skill_curve)%>%
     select(short_name,club,skill_fk_accuracy,skill_curve,image_url)%>%
     head(10) %>%
     
@@ -789,7 +790,7 @@ AddImageColumnByWeb <- function(df)
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
-#---------------------------------- Extract player image using soffia_id (too slow fashkh) ------------------------
+#---------------------------------- Extract player image using soffia_id ------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
@@ -865,7 +866,8 @@ PlotConcatenatedDribblingAverage <- function (fifa_without_GK_vector , average_d
   
   visuals <- rbind(p1,p2,p3,p4,p5)
   ggplot(visuals,
-         aes(y = dribbling_average,  x = height_brackets, group = season)) + geom_line(aes(color = factor(season)))  + ggtitle("average dribbling for each height range")
+         aes(y = dribbling_average,  x = height_brackets, group = season)) + geom_line(aes(color = factor(season)))  +
+    ggtitle("average dribbling for each height range")+theme(plot.title = element_text(hjust = 0.5, size = 14))
   
 }
 # creating a matrix that will contain average dribbling skill for each height range per each fifa season

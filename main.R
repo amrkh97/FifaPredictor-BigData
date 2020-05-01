@@ -310,14 +310,6 @@ getWorldPlot(f16_nation)
 ###########################################################################
 ############################# Abdelgawad ##################################
 ###############################################
-# add image column
-f16 <- AddImageColumn(f16)
-f17 <- AddImageColumn(f17)
-f18 <- AddImageColumn(f18)
-f19 <- AddImageColumn(f19)
-f20 <- AddImageColumn(f20)
-f20[f20$sofifa_id == 251691, "image_url"] = "https://i.pinimg.com/564x/0d/36/e7/0d36e7a476b06333d9fe9960572b66b9.jpg"
-##################################################
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
@@ -352,6 +344,14 @@ f18 <- cbind(season = 18,f18)
 f19 <- cbind(season = 19,f19)
 f20 <- cbind(season = 20,f20)
 
+# add image column
+f16 <- AddImageColumn(f16)
+f17 <- AddImageColumn(f17)
+f18 <- AddImageColumn(f18)
+f19 <- AddImageColumn(f19)
+f20 <- AddImageColumn(f20)
+f20[f20$sofifa_id == 251691, "image_url"] = "https://i.pinimg.com/564x/0d/36/e7/0d36e7a476b06333d9fe9960572b66b9.jpg"
+##################################################
 
 # removing all goal keapers rows as they have an NA in the driblling cloumns
 f16_without_GK <- removeGoalKeapers(f16)
@@ -566,9 +566,9 @@ ggplot(wage_df,
 sm <- summary(wage_model)
 MSE <- mean(sm$residuals^2)
 MSE_after_zero_addition <- mean(wage_df$difference^2)
-MSE
-MSE_after_zero_addition
-max(wage_df$difference)
+MSE #130820612
+MSE_after_zero_addition #130562942
+max(wage_df$difference) #200967.6
 
 
 # test wage model
@@ -587,14 +587,14 @@ ggplot(wage_df,
 sm <- summary(wage_model)
 MSE <- mean(sm$residuals^2)
 MSE_after_zero_addition <- mean(wage_df$difference^2)
-MSE
-MSE_after_zero_addition
-max(wage_df$difference)
+MSE #130820612
+MSE_after_zero_addition #122856893
+max(wage_df$difference) #239382.6
 
 wage_df$accuracy <- ifelse(wage_df$difference > 0.25 * wage_df$actual_wage , "No",ifelse(wage_df$difference < -(0.25 * wage_df$actual_wage),"No", "Yes"))
 accuracy <- 100*(table(wage_df$accuracy)[2] / (table(wage_df$accuracy)[1]+ 
                                                               table(wage_df$accuracy)[2]))
-accuracy
+accuracy #24.81837 
 
 #------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------
@@ -614,7 +614,7 @@ test_set <- subset(f20, sample == FALSE)
 value_linera_predictor <- lm( paste("value_eur ~", paste(attributes_correleted_to_value, collapse = "+"), sep = ""),
            data = training_set, na.action = na.omit)
 
-mean(summary(value_linera_predictor)$residuals^2)
+mean(summary(value_linera_predictor)$residuals^2) #396798076374
 
 #####################################
 # Predicting Market value
@@ -640,7 +640,7 @@ test_set_name_values$accuracy <- ifelse(test_set_name_values$difference > 0.20 *
                                 ifelse(test_set_name_values$difference < -(0.20 * test_set_name_values$value_eur),"No", "Yes"))
 accuracy <- 100*(table(test_set_name_values$accuracy)[2] / (table(test_set_name_values$accuracy)[1]+ 
                                                           table(test_set_name_values$accuracy)[2]))
-accuracy
+accuracy #69.16569 
 
 
 #------------------------------------------------------------------------------------------------------------------
@@ -714,10 +714,10 @@ test_set<- test_set[,c("wage_eur","predicted_wage")]
 test_set <- mutate(test_set,difference = wage_eur - predicted_wage)
 
 test_set$accuracy <- ifelse(test_set$difference > 0.20 * test_set$wage_eur , "No",ifelse(test_set$difference < -(0.20 * test_set$wage_eur),"No", "Yes"))
-table(test_set$accuracy)
+accuracy <- 100*(table(test_set$accuracy)[2] / (table(test_set$accuracy)[1]+ 
+                                                              table(test_set$accuracy)[2]))
 
-min(test_set$difference)
-
+accuracy #21.90091  
 
 
 
