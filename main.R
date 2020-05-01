@@ -1115,8 +1115,8 @@ knnPositionPrediction <- function(df, df.n){
   test.fifa <- df.n[-dat.d,]
   train.fifa_labels <- df[dat.d,ncol(df)]
   test.fifa_labels <-df[-dat.d,ncol(df)]
-  #NROW(train.fifa_labels)
-  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=73)
+  #print(NROW(train.fifa_labels))
+  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=106)
   ACC.73 <- 100 * sum(test.fifa_labels == knn.73)/NROW(test.fifa_labels)
   ACC.73
   #table(knn.73 ,test.fifa_labels)
@@ -1124,6 +1124,7 @@ knnPositionPrediction <- function(df, df.n){
   #confusionMatrix(table(knn.73 ,test.fifa_labels))
   
 }
+levels(f20$Position)
 fifa20.knn <- prepareKNNPredictionData(f20)
 fifa20.knn.n <- as.data.frame(lapply(fifa20.knn[,1:ncol(fifa20.knn)-1], knnNormalize))
 knnPositionPrediction(fifa20.knn, fifa20.knn.n)
@@ -1147,7 +1148,7 @@ knnWagesPrediction <- function(df, df.n){
   train.fifa_labels <- df[dat.d,ncol(df)]
   test.fifa_labels <-df[-dat.d,ncol(df)]
   #NROW(train.fifa_labels)
-  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=106)
+  knn.73 <- knn(train=train.fifa, test=test.fifa, cl=train.fifa_labels, k=6)
   ACC.73 <- 100 * sum(test.fifa_labels == knn.73)/NROW(test.fifa_labels)
   ACC.73
   #table(knn.73 ,test.fifa_labels)
@@ -1155,6 +1156,7 @@ knnWagesPrediction <- function(df, df.n){
   #confusionMatrix(table(knn.73 ,test.fifa_labels))
   
 }
+levels(f20$wage_brackets)
 fifa20.wages.knn <- prepareKNNPredictionDataWages(f20)
 fifa20.wages.knn.n <- as.data.frame(lapply(fifa20.wages.knn[,1:ncol(fifa20.wages.knn)-1], knnNormalize))
 knnWagesPrediction(fifa20.wages.knn, fifa20.wages.knn.n)
